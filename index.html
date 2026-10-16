@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Meridian Prototype</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:wght@600&display=swap">
+<style>
+/* Layout: desktop app shell. Dark sidebar for navigation and data sources, top bar for context and the live plan, dense work area. */
+:root{
+  --bg:#EEF0EE; --surface:#FFFFFF; --ink:#14232E; --muted:#5B6770; --line:#DADEDA; --hover:#F4F6F4;
+  --teal:#1E7F86; --teal-soft:#DCEEEF; --amber:#B9560E; --amber-soft:#F6E3D3; --bar:#14232E; --bar-bg:#E4E7E3;
+  --ok:#2F7A4B; --ok-soft:#DDEFE3; --num:#2A5CA0;
+  --side:#10202A; --side-ink:#C4D2D9; --side-mute:#7F95A0; --side-line:#223540; --side-act:#1C3340;
+  --serif:'Source Serif 4',Georgia,serif; --sans:'IBM Plex Sans',Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0B151C; --surface:#13222B; --ink:#EAEEEC; --muted:#9FB3BC; --line:#25373F; --hover:#182A34;
+  --teal:#6CC4C8; --teal-soft:#183840; --amber:#F0A15E; --amber-soft:#3A2A1C; --bar:#6CC4C8; --bar-bg:#22343F;
+  --ok:#7CCB98; --ok-soft:#1D3A2A; --num:#8FB8F0; --side:#08121A; --side-line:#1B2D37; --side-act:#15293A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0B151C; --surface:#13222B; --ink:#EAEEEC; --muted:#9FB3BC; --line:#25373F; --hover:#182A34;
+  --teal:#6CC4C8; --teal-soft:#183840; --amber:#F0A15E; --amber-soft:#3A2A1C; --bar:#6CC4C8; --bar-bg:#22343F;
+  --ok:#7CCB98; --ok-soft:#1D3A2A; --num:#8FB8F0; --side:#08121A; --side-line:#1B2D37; --side-act:#15293A; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45}
+button{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100%}
+@media (max-width:860px){.app{grid-template-columns:minmax(0,1fr)}}
+/* sidebar */
+.side{background:var(--side);color:var(--side-ink);display:flex;flex-direction:column;gap:22px;padding:18px 14px;position:sticky;top:0;height:100vh;overflow-y:auto}
+@media (max-width:860px){.side{position:static;height:auto;padding:14px 16px}}
+.logo{display:flex;align-items:center;gap:10px;padding:2px 6px}
+.logo b{font-family:var(--serif);font-size:19px;color:#fff;font-weight:600}
+.logo small{display:block;font-size:12px;color:var(--side-mute);font-weight:400}
+.navg{display:flex;flex-direction:column;gap:2px}
+.glabel{font-size:12px;color:var(--side-mute);padding:0 8px 6px}
+.nav{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:8px;color:var(--side-ink);font-size:14px}
+.nav svg{flex:none;opacity:.85}
+.nav:hover{background:var(--side-act)}
+.nav[aria-current="page"]{background:var(--side-act);color:#fff;font-weight:500}
+.nav[aria-current="page"] svg{color:#6CC4C8;opacity:1}
+.nav:focus-visible,.chipb:focus-visible,.btn:focus-visible,.ghost:focus-visible,.opt:focus-visible,tr[data-fam]:focus-visible,.pill:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.src{display:flex;flex-direction:column;gap:2px;margin-top:auto}
+@media (max-width:860px){.src{display:none}}
+.srow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;font-size:13px}
+.srow span:last-child{font-size:12px;color:var(--side-mute)}
+.sd{display:inline-block;width:8px;height:8px;border-radius:50%;background:#6CC4C8;margin-right:8px}
+.sd.lock{background:transparent;border:2px solid #F0A15E}
+.me{display:flex;align-items:center;gap:10px;border-top:1px solid var(--side-line);padding:12px 8px 0}
+@media (max-width:860px){.me{display:none}}
+.av{width:30px;height:30px;border-radius:50%;background:#1E7F86;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex:none}
+.me div{font-size:13px;line-height:1.3;color:#fff}.me small{display:block;color:var(--side-mute);font-size:12px}
+/* top bar */
+.mw{display:flex;flex-direction:column;min-width:0}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;padding:12px 24px;background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:-4px 0 18px}
+.tab{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:8px;padding:10px 16px;font-size:14px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab .n{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--bar-bg);font-size:12px}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);font-weight:600;border-bottom-color:var(--teal)}
+.tab[aria-selected="true"] .n{background:var(--teal);color:#fff}
+.tab:focus-visible{outline:2px solid var(--teal);outline-offset:-2px}
+#libtbl td{vertical-align:top}.dpc{border:1px solid var(--line);border-top:3px solid var(--num);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:12px;background:var(--surface)}.dph{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}.dph .nkk{display:block;padding-top:0;margin-bottom:3px}.dpf{display:block;font-size:13px;font-weight:600;color:var(--teal);margin-top:3px}.dpn{text-align:right}.dpn b{display:block;font-family:var(--serif);font-size:30px;font-weight:600;line-height:1;color:var(--ink)}.dpn small{display:block;font-size:12px;color:var(--muted);margin-top:4px}.dpn .dpw{color:var(--amber);font-weight:600}.dpb{display:grid;grid-template-columns:1fr 1fr;gap:20px;border-top:1px solid var(--line);padding-top:12px}.dpb .nkk{display:block;padding-top:0}.dpbar{height:8px;background:var(--bar-bg);border-radius:4px;margin:8px 0 6px;overflow:hidden}.dpbar i{display:block;height:100%;background:var(--teal)}.dpt{margin:0;font-size:13px;color:var(--muted);line-height:1.45}.dpt b{color:var(--ink)}
+.rsw{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}.rsp2{border:1px solid var(--line);border-top:3px solid var(--teal);border-radius:8px;display:flex;flex-direction:column;background:var(--surface)}.rsp2.nw{border-top-color:var(--amber)}.rsh2{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:14px 16px 10px}.rsh2 b{display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--teal)}.rsp2.nw .rsh2 b{color:var(--amber)}.rsh2 span{display:block;font-size:13px;color:var(--muted);margin-top:4px;max-width:210px}.rsbig{font-family:var(--serif);font-size:32px;font-weight:600;line-height:1;text-align:right;color:var(--ink)}.rsbig small{display:block;font-family:var(--sans);font-size:12px;font-weight:400;margin-top:4px;color:var(--muted)}.rsbody{padding:4px 16px 16px;display:flex;flex-direction:column;gap:14px;flex:1;border-top:1px solid var(--line);padding-top:14px;margin:0 0}.rsr{display:flex;flex-direction:column;gap:8px}.rsn{font-family:var(--serif);font-size:19px;font-weight:600;color:var(--ink);line-height:1.25}.rsn.rsq{font-style:italic;font-weight:500;color:var(--muted)}.rsk{display:flex;gap:8px;align-items:flex-start}.rsplus{flex:none;font-weight:700;font-size:18px;line-height:1.2;color:var(--amber);width:14px}.rsr .why,.path .why{max-width:none}
+.stat b .un{font-family:var(--sans);font-size:14px;font-weight:500;color:var(--muted);margin-left:7px}.nkc{border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:10px;padding:14px 16px;background:var(--surface);display:flex;flex-direction:column;gap:9px}.nkc.off{opacity:.55}.nkc.dz{border-left-color:var(--amber)}.nkbs{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.nkb.nr{background:var(--ink);color:var(--surface)}.nkl{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--line)}.nkl .rl{font-size:15px;font-weight:600;color:var(--ink)}.nkl .rl.dz{color:var(--amber)}.nkl .rc{font-size:13px;color:var(--muted)}.nkh{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.nkn{font-family:var(--serif);font-size:19px;font-weight:600;color:var(--ink);line-height:1.25}.nkb{font-size:12px;font-weight:600;color:var(--amber);background:var(--amber-soft);padding:3px 9px;border-radius:999px;white-space:nowrap}.nkb.ok{color:var(--ok);background:var(--ok-soft)}.nkd{margin:0;font-size:14px;color:var(--ink);line-height:1.5}.nks{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}.nkk{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding-top:5px}.nkf{display:flex;gap:20px;align-items:center;font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:9px;flex-wrap:wrap}.nkf label{display:flex;align-items:center;gap:8px;margin:0}.nkf .wi{width:56px}.nkx{border:0;padding:0;font-size:13px}.nkx summary{cursor:pointer;color:var(--teal);font-weight:600}
+.aicell{min-width:280px}.aicell .why{max-width:320px}.aid{border:0;padding:0;margin-top:6px}.aid summary{cursor:pointer;font-size:12px;font-weight:600;color:var(--teal)}.aid dl{margin:8px 0 0;font-size:12px;line-height:1.45;max-width:340px}.aid dt{font-weight:600;color:var(--muted);margin-top:7px;text-transform:uppercase;font-size:10.5px;letter-spacing:.04em}.aid dd{margin:2px 0 0}
+.lv{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;border:1px solid var(--line)}
+.lv.high{background:var(--teal-soft);color:var(--teal);border-color:var(--teal)}
+.lv.med{background:var(--amber-soft);color:var(--amber);border-color:var(--amber)}
+.lv.low{background:var(--bar-bg);color:var(--muted)}
+.why{font-size:12px;color:var(--muted);margin-top:3px;max-width:210px}
+.dec{font:inherit;font-size:13.5px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+.nav .chev{margin-left:auto;transition:transform .15s}
+.nav[aria-expanded="true"] .chev{transform:rotate(90deg)}
+.nav.child{padding-left:39px;font-size:13.5px}
+.nav.child[aria-current="page"]{background:var(--side-act)}
+.st{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;border:1px solid var(--line)}
+.st.ok{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}
+.st.warn{background:var(--amber-soft);color:var(--amber);border-color:var(--amber)}
+.st.draft{background:var(--bar-bg);color:var(--muted)}
+.srcline{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
+.steps{display:flex;flex-wrap:wrap;gap:8px}
+.stp{display:inline-flex;align-items:center;gap:7px;padding:5px 12px 5px 6px;border-radius:999px;border:1px solid var(--line);font-size:13px;color:var(--muted);background:var(--surface)}
+.stp .n{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--bar-bg);font-size:12px;font-weight:600}
+.stp.done{border-color:var(--ok);color:var(--ok);background:var(--ok-soft)}
+.stp.done .n{background:var(--ok);color:#fff}
+.stp.cur{border-color:var(--teal);color:var(--ink);font-weight:600}
+.stp.cur .n{background:var(--teal);color:#fff}
+.chk{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.chk li{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;color:var(--muted)}
+.chk li.ok{color:var(--ink)}
+.chk .cm{width:18px;height:18px;border-radius:50%;border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex:none;margin-top:1px}
+.chk li.ok .cm{background:var(--ok);border-color:var(--ok);color:#fff}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px}
+.btn[disabled]{opacity:.45;cursor:default}
+.crumb{color:var(--muted);font-size:13px}.crumb b{color:var(--ink);font-weight:500}
+.tr{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-left:auto}
+.pill{all:unset;cursor:pointer;display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:13px;background:var(--bg)}
+.pill b{font-variant-numeric:tabular-nums}
+.sample{font-size:12px;color:var(--amber);background:var(--amber-soft);padding:4px 9px;border-radius:6px;font-weight:500}
+.ghost{all:unset;cursor:pointer;font-size:13px;color:var(--muted);border:1px solid var(--line);padding:5px 10px;border-radius:6px;background:var(--surface)}
+.ghost:hover{background:var(--hover)}
+.content{padding:22px 24px 48px;display:flex;flex-direction:column;gap:18px;max-width:1320px;width:100%}
+.pagehead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px 20px;align-items:flex-end}
+h1{font-family:var(--serif);font-size:25px;font-weight:600;margin:0;line-height:1.2}
+h2{font-size:17px;font-weight:600;margin:0;line-height:1.25}
+h3{font-size:13.5px;margin:0 0 8px;font-weight:600}
+.sub{color:var(--muted);margin:5px 0 0;max-width:72ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.pad{padding:18px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:1060px){.grid{grid-template-columns:minmax(0,1fr)}}
+.grid.wide{grid-template-columns:minmax(0,1fr) 320px}
+@media (max-width:1060px){.grid.wide{grid-template-columns:minmax(0,1fr)}}
+.dec{min-width:136px}
+.sticky{position:sticky;top:64px}
+@media (max-width:1060px){.sticky{position:static}}
+.note{font-size:12.5px;color:var(--muted)}
+.sech{margin:6px 0 -4px;font-size:15px;color:var(--ink2,inherit)}.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}.rank{display:flex;flex-direction:column;gap:12px}.rk{display:grid;grid-template-columns:22px 1fr auto;gap:2px 10px;align-items:center}.rn{color:var(--muted,#6b7a85);font-size:13px}.rl{display:flex;flex-direction:column}.rv{font-weight:600;font-variant-numeric:tabular-nums}.rbar{grid-column:2/4;height:6px;border-radius:3px;background:var(--bar-bg)}.rbar i{display:block;height:100%;border-radius:3px;background:var(--teal)}
+.grid2.wide{grid-template-columns:3fr 2fr}.rtl{display:grid;gap:3px;font-size:13px;min-width:230px}.grid2.tri{grid-template-columns:5fr 3fr 3fr}.grid2.sd2{grid-template-columns:2fr 3fr}@media(max-width:1100px){.grid2.tri{grid-template-columns:1fr 1fr}.grid2.tri>:first-child{grid-column:1/-1}}@media(max-width:900px){.grid2.tri,.grid2.wide,.grid2.sd2{grid-template-columns:1fr}}
+.vbars{display:flex;align-items:flex-end;gap:14px;flex:1;min-height:170px;padding-top:18px;border-bottom:1px solid var(--line)}.vb{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;position:relative;min-width:0}.vv{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}.vbar{width:68%;max-width:44px;border-radius:4px 4px 0 0;background:var(--num);opacity:.55;transition:opacity .15s}.vbar.hi{opacity:1}.vb:hover .vbar{opacity:1}.vl{position:absolute;bottom:-40px;font-size:11px;color:var(--muted);text-align:center;width:100%;line-height:1.2}.vbars{margin-bottom:42px}
+.hbars{display:flex;flex-direction:column;gap:18px}.hb{display:grid;grid-template-columns:96px 1fr 44px;gap:10px;align-items:center;font-size:13px}.hl{color:var(--muted)}.htrack{height:22px;border-radius:4px;background:var(--bar-bg);overflow:hidden}.htrack i{display:block;height:100%;background:var(--num);border-radius:4px}.htrack i.bad{background:var(--amber)}.hv{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.mini3,.trust{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}.mini3{grid-template-columns:1fr}.mini3>div,.trust>div{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2,transparent)}.mini3 span,.trust span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.trust{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}.trust b{font-size:20px;color:var(--num)}
+.blist{display:flex;flex-direction:column;gap:4px}.brow{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;background:var(--bar-bg);background:color-mix(in srgb,var(--bar-bg) 55%,transparent)}.bdot{width:8px;height:8px;border-radius:50%;background:var(--teal);flex:none}.bn{flex:1;font-size:14px}.brow b{font-variant-numeric:tabular-nums}.bp{width:44px;text-align:right;font-size:12px;color:var(--muted)}
+.capwrap{flex:1;display:flex;flex-direction:column;gap:12px}.capchart{flex:1;display:flex;align-items:center;justify-content:center;min-height:170px}.cleglist{display:flex;flex-direction:column;gap:8px;margin-top:auto}.cleg{display:grid;grid-template-columns:14px 1fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:8px}.cleg .sw{width:12px;height:12px;border-radius:3px}.cv{text-align:right;font-variant-numeric:tabular-nums}.cv b{font-size:16px}
+.skd{border:0;padding:0;border-radius:8px;background:color-mix(in srgb,var(--bar-bg) 55%,transparent)}.skd summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:5px 12px;font-weight:400}.skd .bn b,.skd .bn{font-weight:500}.skd .bn{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.skf{display:inline;margin-left:10px;font-size:12px;font-weight:400}.skd .bp{white-space:nowrap}.skd .bdot{width:6px;height:6px}.skd summary::-webkit-details-marker{display:none}.chev{width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);margin:0 4px 3px 4px;transition:transform .15s}.skd[open] .chev{transform:rotate(-135deg);margin-top:5px}.skb{padding:2px 14px 14px 30px;display:flex;flex-direction:column;gap:8px;font-size:14px}.skb p{margin:0}.skb table{font-size:13px}.skmore{border:0;padding:0;background:none}.skmore summary{font-weight:500;cursor:pointer;color:var(--teal);font-size:14px;padding:6px 2px}.skmore .blist{margin-top:6px;gap:4px}.skd summary:focus-visible,.skmore summary:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.stat .t{display:flex;align-items:center;gap:10px;min-height:40px}.sico{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;color:var(--teal);flex:none}.sico svg{width:22px;height:22px;stroke-width:1.75}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.crumblink{all:unset;cursor:pointer;color:var(--teal);text-decoration:underline}.crumblink:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+@keyframes enter{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+#main.enter{animation:enter .28s ease-out}
+@media (prefers-reduced-motion:reduce){#main.enter{animation:none}}
+.stph{display:flex;gap:14px;align-items:flex-start}.stpn{width:30px;height:30px;border-radius:50%;background:var(--ink);color:var(--surface);display:grid;place-items:center;font-weight:600;font-size:14px;flex:none}.sbh{margin:4px 0 0;padding-top:16px;border-top:1px solid var(--line)}.sbh h3{margin:0 0 4px}.flowsvg{width:100%;height:auto;display:block}
+.tx th:first-child,.tx td:first-child{padding-left:22px}.tx th:last-child,.tx td:last-child{padding-right:22px}.tx td{padding-top:16px!important;padding-bottom:16px!important}.tx th{padding-top:12px;padding-bottom:12px}.txh{padding:22px 22px 14px}.txf{padding:14px 22px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}.txw{margin:0}.tx td{vertical-align:top;padding:13px 14px}.tx tr.txr{cursor:pointer}.tx tr.txr:hover td{background:var(--hover)}.tx tr.txr.off td{opacity:.5}.tx .tn{font-weight:600;font-size:14.5px;color:var(--ink)}.tx .td{margin-top:3px;font-size:13px;color:var(--muted);line-height:1.45;max-width:340px}.tx .cv{width:28px;padding-right:6px;text-align:right}.tx .cv::after{content:"";display:inline-block;width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);margin-top:5px;transition:transform .15s}.tx tr.txr.open .cv::after{transform:rotate(-135deg);margin-top:9px}.tx tr.txd td{background:var(--hover);padding-left:22px!important;padding-right:22px!important;padding-top:12px!important;padding-bottom:14px!important}.tx tr.txd .why{font-size:13px;max-width:none}.tx .fit .bar i{background:var(--teal)}.tx .fit .bar{background:var(--bar-bg)}.prop{border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:8px;padding:12px 14px;background:var(--surface);font-size:13.5px;line-height:1.5;color:var(--ink)}.tx .nrt{font-weight:600;color:var(--amber)}.tx .nr{display:inline-block;font-size:12px;font-weight:600;background:var(--ink);color:var(--surface);padding:2px 9px;border-radius:999px;margin-right:6px}.tx .nw2{font-style:italic;color:var(--muted);font-weight:500}.tx .big{font-family:var(--serif);font-size:20px;font-weight:600;color:var(--ink)}.tx .sub{font-size:12.5px;color:var(--muted);margin-top:2px}.tx .over{font-size:12.5px;color:var(--amber);font-weight:600;margin-top:2px}.tx tfoot td{border-top:2px solid var(--line);font-weight:600;background:var(--hover)}.tx .fit{display:flex;align-items:center;gap:8px;min-width:150px}.tx .fit .bar{flex:1;height:8px}.tx .fit b{min-width:38px;text-align:right}.tx .ch{display:flex;flex-wrap:wrap;gap:5px}
+.dgrid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;align-items:start}
+@media (max-width:1060px){.dgrid{grid-template-columns:minmax(0,1fr)}}
+.kv{width:100%;border-collapse:collapse}.kv td{padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px}.kv td:last-child{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.strip.five{grid-template-columns:repeat(5,minmax(0,1fr))}
+@media (max-width:1180px){.strip.five{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}}
+.st{white-space:nowrap}tr[data-tfm]{cursor:pointer}tr[data-tfm]:hover td{background:var(--hover)}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 18px;display:flex;flex-direction:column;gap:4px}
+.stat{border-top:3px solid var(--teal);box-shadow:0 1px 3px rgba(20,35,46,.10)}
+.stat.warn{border-top-color:var(--amber)}
+.stat .t{font-size:13.5px;font-weight:600;color:var(--muted)}
+.stat .c{font-size:12.5px;color:var(--muted);line-height:1.35}
+.stat b{font-size:26px;font-weight:700;color:var(--num);font-variant-numeric:tabular-nums;line-height:1.2;overflow-wrap:anywhere}
+.stat.warn{border-color:var(--amber);background:var(--amber-soft)}.stat.warn b{color:var(--amber)}
+.stat.ctr{align-items:center;text-align:center;gap:6px}
+.stat.ctr .body{min-height:96px;display:flex;align-items:center;justify-content:center}
+.stat .pr{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.stat .tier{margin-top:4px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.kpi{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.kpi b{display:block;font-size:21px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.2}
+.kpi span{font-size:12.5px;color:var(--muted)}
+.kpi.warn{border-color:var(--amber);background:var(--amber-soft)}.kpi.warn b{color:var(--amber)}
+.tier{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;white-space:nowrap}
+.dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--teal);flex:none;display:inline-block}
+.dot.measured{background:var(--teal)}
+.dot.inferred{background:linear-gradient(90deg,var(--teal) 50%,transparent 50%)}
+.dot.assumed{border-style:dashed;background:transparent}
+/* toolbar + data grid */
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
+.search{flex:1;min-width:160px;display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--bg)}
+.search input{all:unset;flex:1;font-size:14px;min-width:0}
+.search:focus-within{outline:2px solid var(--teal)}
+.chipb{all:unset;cursor:pointer;font-size:13px;border:1px solid var(--line);border-radius:999px;padding:4px 11px;color:var(--muted)}
+.chipb[aria-pressed="true"]{background:var(--teal-soft);border-color:var(--teal);color:var(--ink)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:10px 14px;border-top:1px solid var(--line);font-size:14px;vertical-align:middle}
+th{font-weight:500;color:var(--muted);border-top:none;font-size:12.5px;background:var(--hover)}
+td.num,th.num{text-align:right}
+tr[data-fam]{cursor:pointer}
+tr[data-fam]:hover td{background:var(--hover)}
+tr[data-fam][aria-selected="true"] td{background:var(--teal-soft)}
+.scroll{overflow-x:auto}
+.barwrap{display:flex;align-items:center;gap:10px;min-width:150px}
+.bar{flex:1;height:8px;background:var(--bar-bg);border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--bar);border-radius:4px}
+.bar.hot i{background:var(--amber)}
+.pct{width:38px;font-weight:600;text-align:right}
+.cbar{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:minmax(110px,240px) minmax(0,1fr) 92px;gap:12px;align-items:center;padding:6px 8px;border-radius:6px}
+.cbar:hover{background:var(--hover)}
+.cbar:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+.cbar[aria-pressed="true"]{background:var(--teal-soft)}
+.cl{font-size:13.5px;line-height:1.3}
+.ct{height:14px;background:var(--bar-bg);border-radius:3px;overflow:hidden}
+.ct i{display:block;height:100%;background:var(--bar);border-radius:3px}
+.ct i.hot{background:var(--amber)}
+.cv{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.cv small{font-weight:400;color:var(--muted);font-size:12px}
+@media (max-width:620px){.cbar{grid-template-columns:minmax(0,1fr) 84px}.ct{grid-column:1/-1;order:3}}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;padding:11px 14px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--line)}
+details{border:1px solid var(--line);border-radius:8px;padding:9px 12px;background:var(--surface)}
+summary{cursor:pointer;font-weight:600;font-size:13.5px}
+details ul{margin:9px 0 0;padding-left:18px;color:var(--muted);font-size:13.5px}
+details li{margin-bottom:4px}
+/* simulator */
+.grp summary{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.grp summary .meta{font-weight:400;color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+.task{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}
+.task:first-of-type{margin-top:10px}
+.task input{width:17px;height:17px;accent-color:var(--teal)}
+.task label{cursor:pointer}
+.task .w{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12.5px}
+.task .ai{font-size:12px;color:var(--teal);margin-left:8px}
+.flow{display:flex;height:30px;border-radius:7px;overflow:hidden;background:var(--bar-bg)}
+.flow div{height:100%;transition:width .25s}
+.f1{background:var(--bar-bg)}.f2{background:var(--teal)}.f3{background:var(--amber)}
+.flowkey{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;margin-top:8px;color:var(--muted)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
+.ctrl{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+@media (max-width:620px){.ctrl{grid-template-columns:minmax(0,1fr)}}
+select,input[type=range]{width:100%;font:inherit}
+select{padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink)}
+.callout{border:1px solid var(--amber);background:var(--amber-soft);padding:11px 13px;border-radius:8px;font-size:13.5px}
+.path{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;border:1px solid var(--line);border-radius:8px;padding:12px}
+.path .t{font-weight:500}.path .c{font-size:22px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.path .d{grid-column:1/-1;color:var(--muted);font-size:12.5px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;grid-column:1/-1}
+.chip{white-space:nowrap;font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 9px;color:var(--muted)}
+.chip.add{border-color:var(--amber);color:var(--amber)}
+.seg{display:flex;height:28px;border-radius:6px;overflow:hidden;font-size:12px}
+.seg div{display:flex;align-items:center;justify-content:center;color:#fff;white-space:nowrap;padding:0 6px}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.opt{all:unset;box-sizing:border-box;cursor:pointer;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.opt:hover{background:var(--hover)}
+.opt[aria-pressed="true"]{border-color:var(--teal);background:var(--teal-soft)}
+.opt b{font-size:14.5px}.opt span{font-size:13px;color:var(--muted)}
+.tag{align-self:flex-start;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px}
+.tag.yes{background:var(--ok-soft);color:var(--ok)}.tag.part{background:var(--amber-soft);color:var(--amber)}.tag.no{background:var(--bar-bg);color:var(--muted)}
+.btn{all:unset;cursor:pointer;background:var(--ink);color:var(--surface);padding:8px 14px;border-radius:8px;font-size:13.5px;font-weight:500;display:inline-block}
+.btn.sec{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+pre.brief{white-space:pre-wrap;font:inherit;font-size:13.5px;margin:0;line-height:1.6}
+.wi{width:76px;font:inherit;padding:5px 7px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);text-align:right}
+.msel{position:relative;max-width:460px;padding:0;border:0;background:none}.msel>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 11px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit}.msel>summary::-webkit-details-marker{display:none}.msel>summary::after{content:"";width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);margin-top:-3px;flex:none}.msel[open]>summary::after{transform:rotate(-135deg);margin-top:3px}.msel>summary:focus-visible{outline:2px solid var(--teal);outline-offset:2px}.mselp{position:absolute;z-index:20;left:0;right:0;top:calc(100% + 4px);max-height:260px;overflow:auto;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--surface);box-shadow:0 8px 24px rgba(0,0,0,.14)}.mselp label{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:6px;cursor:pointer;font-size:14px}.mselp label:hover{background:var(--hover)}.mselp small{margin-left:auto;color:var(--muted);font-size:12px}.msv{color:var(--muted)}.msv.on{color:var(--ink)}
+.tdlg{border:1px solid var(--line);border-radius:12px;padding:0;background:var(--surface);color:var(--ink);width:min(560px,92vw);max-height:90vh;overflow:visible;box-shadow:0 20px 60px rgba(0,0,0,.3)}.tdlg::backdrop{background:rgba(10,20,30,.45)}.tdb{display:grid;gap:14px;padding:20px 22px}.tdh{display:flex;align-items:center;justify-content:space-between;gap:10px}.tdh h3{margin:0}.tdf{display:grid;gap:5px}.tdr{display:flex;gap:12px;flex-wrap:wrap}.tdr .tdf:first-child{flex:1;min-width:200px}.tdf input:not([type=checkbox]),.tdf select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);width:100%;box-sizing:border-box}.tdlg .mselp{max-height:200px}.tdlg .msel{max-width:none}
+.addrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.addrow input[type=text],.addrow input[type=number]{font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink)}
+.addrow input[type=text]{flex:1;min-width:200px}.addrow input[type=number]{width:100px}
+.inl{display:inline-flex;gap:6px;align-items:center;font-size:13.5px}
+.legend .ghost[disabled]{opacity:.5;cursor:default}
+.toast{position:fixed;right:20px;bottom:20px;background:var(--ink);color:var(--surface);padding:9px 14px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){.flow div,.toast{transition:none}}
+/* visual refresh (light) */
+:root[data-theme="light"]{--bg:#EAF1F1;--line:#D3DEDE;--hover:#F1F7F7;--side-act:rgba(108,196,200,.16);--side-line:rgba(255,255,255,.10);--side-ink:#CFE3E6;--side-mute:#8FB1B7}
+:root[data-theme="light"] body{background:linear-gradient(180deg,#DCEBEC 0,#EAF1F1 340px) no-repeat,#EAF1F1}
+:root[data-theme="light"] .side{background:radial-gradient(120% 60% at 0% 0%,#17525C 0,rgba(23,82,92,0) 60%),linear-gradient(180deg,#0F3A43 0,#0A2630 60%,#08202A 100%);box-shadow:1px 0 0 rgba(255,255,255,.06)}
+:root[data-theme="light"] .glabel{text-transform:uppercase;letter-spacing:.08em;font-size:11px;color:#7FA6AD}
+:root[data-theme="light"] .nav:hover{background:rgba(255,255,255,.07)}
+:root[data-theme="light"] .nav[aria-current="page"]{background:linear-gradient(90deg,rgba(108,196,200,.26),rgba(108,196,200,.08));box-shadow:inset 3px 0 0 #6CC4C8}
+:root[data-theme="light"] .top{background:rgba(255,255,255,.86);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:0 1px 0 var(--line),0 4px 14px rgba(15,58,67,.05)}
+:root[data-theme="light"] .card{box-shadow:0 1px 2px rgba(15,58,67,.06),0 6px 18px rgba(15,58,67,.05);border-color:#D7E2E2}
+:root[data-theme="light"] .stat{border-color:#D3DEDE;box-shadow:0 1px 2px rgba(15,58,67,.08),0 6px 16px rgba(15,58,67,.06)}
+:root[data-theme="light"] .tabs{border-bottom-color:#C9D8D8}
+:root[data-theme="light"] .logo b{letter-spacing:.01em}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="side">
+    <div class="logo">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="13" fill="none" stroke="#6CC4C8" stroke-width="2"/><path d="M15 2v26M2 15h26" stroke="#6CC4C8" stroke-width="1" opacity=".5"/><circle cx="15" cy="15" r="4.5" fill="#6CC4C8"/></svg>
+      <div><b>Meridian</b><small>Workforce decision layer</small></div>
+    </div>
+    <div class="navg"><div id="nav"></div></div>
+    <div class="navg"><div id="nav0"></div></div>
+    <div class="src">
+      <div class="glabel">Data sources</div>
+      <div class="srow"><span><i class="sd"></i>HR system (SAP)</span><span>read-only</span></div>
+      <div class="srow"><span><i class="sd"></i>Learning system</span><span>read-only</span></div>
+      <div class="srow"><span><i class="sd"></i>Assessment</span><span>read-only</span></div>
+      <div class="srow"><span><i class="sd"></i>Performance</span><span>read-only</span></div>
+      <div class="srow"><span><i class="sd lock"></i>Payroll (Oracle)</span><span>off limits</span></div>
+    </div>
+    <div class="me"><div class="av">DH</div><div>Director of Human Capital<small>Sample user</small></div></div>
+  </aside>
+  <div class="mw">
+    <div class="top">
+      <div class="tr">
+                <span class="sample">Illustrative sample data</span>
+        <button class="ghost" id="theme" type="button">Switch theme</button>
+      </div>
+    </div>
+    <main class="content" id="main"></main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ---------- data ---------- */
+var TIER={measured:'Measured',inferred:'Inferred',assumed:'Assumed'}, RANK={measured:0,inferred:1,assumed:2};
+var FAM=[
+ {id:'meter',name:'Field Metering and Manual Operations',people:6000,tier:'inferred',
+  basis:['Headcount of about 6,000 counted from the HR system (measured).','About 70% automatable within 18 months, from the case brief (smart-meter rollout, IoT, AI-assisted operations already being procured).','The split of that 70% across individual tasks is our task analysis, not yet validated with unit managers (inferred).'],
+  tasks:[['Manual meter reading',30,1],['Reading data entry and validation',15,1],['Routine fault and tamper inspection',15,1],['Disconnection and reconnection orders',10,1],['Customer complaint site visits',10,0],['Meter installation and replacement',10,0],['Field supervision and coordination',5,0],['Safety and equipment upkeep',5,0]]},
+ {id:'bill',name:'Billing and Customer Service',people:6700,tier:'inferred',basis:['Chat and document automation applied to call and ticket categories (inferred).','Headcount from the HR system (measured).'],
+  tasks:[['Bill generation and checks',25,1],['Payment reconciliation',20,1],['Complaint resolution',30,0],['Field coordination',25,0]]},
+ {id:'fin',name:'Finance and Administration',people:5400,tier:'inferred',basis:['Reconciliation and reporting tasks scored against automation tools (inferred).'],
+  tasks:[['Routine reconciliation',20,1],['Report preparation',18,1],['Budget analysis',32,0],['Audit and compliance',30,0]]},
+ {id:'plant',name:'Plant Operations',people:13200,tier:'inferred',basis:['Task list drafted from a standard task catalogue and not yet reviewed with unit managers (inferred).'],
+  tasks:[['Routine monitoring',15,1],['Log keeping',10,1],['Equipment operation',45,0],['Emergency response',30,0]]},
+ {id:'eng',name:'Engineering and Planning',people:7100,tier:'inferred',basis:['Task list drafted from a standard task catalogue and not yet reviewed with unit managers (inferred).'],
+  tasks:[['Drafting and documentation',12,1],['Data compilation',8,1],['Design',45,0],['Project coordination',35,0]]},
+ {id:'grid',name:'Grid Maintenance',people:10000,tier:'inferred',basis:['Mostly physical work. Task list drafted from a standard task catalogue and not yet reviewed with unit managers (inferred).'],
+  tasks:[['Inspection reporting',10,1],['Scheduling',8,1],['Line repair',52,0],['Emergency restoration',30,0]]},
+ {id:'it',name:'IT and Digital',people:3600,tier:'inferred',basis:['Task list scored against current automation tools (inferred).'],
+  tasks:[['Ticket triage',7,1],['Report generation',5,1],['Development',55,0],['Security operations',33,0]]}
+];
+function recompute(f){var tot=0,a=0;f.tasks.forEach(function(t){tot+=t.w;if(t.ai)a+=t.w});f.tot=tot;f.exp=tot?Math.round(a/tot*100):0}
+var TSK={'Manual meter reading':['Meter reading','Route planning'],'Reading data entry and validation':['Meter reading'],'Routine fault and tamper inspection':['Fault inspection','Work safety certification'],'Disconnection and reconnection orders':['Work safety certification','Meter installation'],'Customer complaint site visits':['Complaint handling','Customer communication'],'Meter installation and replacement':['Meter installation','Work safety certification','Device configuration'],'Field supervision and coordination':['Project coordination'],'Safety and equipment upkeep':['Work safety certification'],'Bill generation and checks':['Billing rules'],'Payment reconciliation':['Payment reconciliation'],'Complaint resolution':['Complaint handling','Customer communication'],'Field coordination':['Route planning'],'Routine reconciliation':['Accounting standards'],'Report preparation':['Reporting'],'Budget analysis':['Budget analysis'],'Audit and compliance':['Accounting standards'],'Routine monitoring':['Routine monitoring'],'Log keeping':['Documentation'],'Equipment operation':['Equipment operation'],'Emergency response':['Emergency response'],'Drafting and documentation':['Documentation','Design'],'Data compilation':['Documentation'],'Design':['Design'],'Project coordination':['Project coordination'],'Inspection reporting':['Inspection reporting'],'Scheduling':['Project coordination'],'Line repair':['Line repair'],'Emergency restoration':['Emergency response','Line repair'],'Ticket triage':['Ticket triage'],'Report generation':['Documentation'],'Development':['Development'],'Security operations':['Security operations']};
+var MED=['Meter installation and replacement','Complaint resolution','Budget analysis','Project coordination','Development'];
+var LVL={high:'High',med:'Medium',low:'Low'};
+var WHY={high:'Rule-based and repetitive; tools exist today',med:'Partly routine; exceptions still need a person',low:'Needs physical presence or human judgement'};
+var TAI={
+"Manual meter reading":{c:"High",why:"Walking a fixed route to read a dial or display is fully rule-based and repeats every cycle. The same reading is already produced by the smart-meter rollout and IoT readers, so the visit adds no information.",how:"Replace with smart meters and remote reading (AMI/IoT). Readings are pushed to the billing system on a schedule. Manual visits remain only for meters not yet swapped.",tool:"Smart meters, IoT gateway, meter data management",human:"Handle meters with no signal and confirm disputed readings on site.",risk:"Depends on the pace of meter swaps. Savings follow installation, not purchase."},
+"Reading data entry and validation":{c:"High",why:"Typing readings into a system and checking them against past values follows clear rules (range, trend, duplicate). It exists only because readings arrive on paper or handheld devices.",how:"Automated ingestion of remote readings with rule-based validation. Anomalies (spikes, zero use, reverse flow) are flagged and the rest pass straight through.",tool:"Data pipeline, validation rules, anomaly detection",human:"Review flagged exceptions and correct master data.",risk:"Some exceptions remain. Quality of meter master data matters."},
+"Routine fault and tamper inspection":{c:"Medium-High",why:"Most routine inspections look for known patterns (abnormal consumption, seal damage, voltage drop). Analytics can find these from data before anyone drives out. The physical confirmation is still needed.",how:"Analyse consumption and meter event data to rank suspected faults or tampering. Crews are sent only to flagged sites, with a prepared work order.",tool:"Consumption analytics, anomaly scoring, work order automation",human:"Visit flagged sites, confirm the finding and handle enforcement.",risk:"False positives can waste visits. Needs tuning with field feedback."},
+"Disconnection and reconnection orders":{c:"High",why:"Orders are triggered by payment status and rules. Smart meters can switch supply remotely, so the trip itself disappears for equipped customers.",how:"Rules engine raises the order from payment status. The order is sent to the meter as a remote command with confirmation logged. Manual dispatch only for non-smart meters.",tool:"Remote disconnect meters, rules engine, billing integration",human:"Approve sensitive cases (vulnerable customers, disputes) and field-handle non-smart meters.",risk:"Needs policy and regulatory sign-off for remote disconnection."},
+"Customer complaint site visits":{c:"Low",why:"The visit exists to look at a physical problem and talk to a customer. Remote diagnostics can reduce how many visits are needed, but a person still has to be there.",how:"Not automated. AI can pre-screen complaints and solve some remotely before dispatch.",tool:"Remote diagnostics (supporting only)",human:"Do the site visit, judge the problem and speak with the customer.",risk:"Low automation potential. Treat any reduction as a side effect of better triage."},
+"Meter installation and replacement":{c:"Medium",why:"Installing a device is physical and needs safety certification. Only the surrounding steps (scheduling, configuration, test) can be automated.",how:"Automate job scheduling, device provisioning and commissioning checks. Installation itself stays with technicians, with guided checklists on a mobile app.",tool:"Field service app, device provisioning, scheduling optimiser",human:"Install, test and certify the meter on site.",risk:"Demand for this task rises during rollout, so it grows before it shrinks."},
+"Field supervision and coordination":{c:"Low",why:"Supervising crews and resolving day-to-day issues relies on judgement and relationships. Some reporting can be automated but not the coordination.",how:"Not automated. Dashboards can give supervisors a clearer view of crew status.",tool:"Dashboards (supporting only)",human:"Lead crews, solve problems and make dispatch decisions.",risk:"Low automation potential."},
+"Safety and equipment upkeep":{c:"Low",why:"Safety checks and equipment care need physical presence and accountability. Rules require a named person.",how:"Not automated. Digital checklists can improve record keeping.",tool:"Digital checklists (supporting only)",human:"Perform checks and own safety sign-off.",risk:"Regulatory duty. Do not reduce."},
+"Bill generation and checks":{c:"High",why:"Billing follows tariff rules applied to meter data. It is repetitive, high-volume and already mostly system-driven. Checks compare against past bills and thresholds.",how:"Run billing cycles automatically and validate with rules. Bills that fail checks go to an exception queue, the rest are released without review.",tool:"Billing engine, validation rules, exception queue",human:"Resolve exceptions and handle tariff changes.",risk:"Errors reach customers at scale, so validation rules need testing before go-live."},
+"Payment reconciliation":{c:"High",why:"Matching payments to invoices is rule-based, repetitive and uses structured data from banks and channels.",how:"Auto-match payments by reference and amount, with fuzzy matching for partial cases. Unmatched items are queued for review.",tool:"Matching engine, bank feed integration",human:"Investigate unmatched payments and disputes.",risk:"Match rates depend on payment reference quality."},
+"Complaint resolution":{c:"Medium",why:"Many complaints are standard (billing query, outage status) and AI can answer them. Others need judgement, empathy or a policy exception.",how:"A chat assistant resolves common categories and drafts replies. Complex or sensitive cases are routed to staff with a summary and suggested answer.",tool:"Chat assistant, ticket classification, reply drafting",human:"Handle complex, emotional or exception cases.",risk:"Customer trust. Always keep an easy route to a person."},
+"Field coordination":{c:"Low",why:"Coordinating with crews in the field depends on real-time judgement and local knowledge.",how:"Not automated. Scheduling tools can support planners.",tool:"Scheduling tools (supporting only)",human:"Coordinate and decide on the day.",risk:"Low automation potential."},
+"Routine reconciliation":{c:"High",why:"Reconciling accounts follows fixed rules on structured data. Most items match and only the differences need attention.",how:"Automatic matching between ledgers and sub-ledgers with tolerance rules. Differences go to a review queue with the likely cause.",tool:"Reconciliation engine, rules, ERP integration",human:"Investigate differences and approve adjustments.",risk:"Must keep an audit trail. Controls need to be redesigned, not just removed."},
+"Report preparation":{c:"High",why:"Regular reports pull the same figures into the same format. Preparation time is mostly copying and formatting.",how:"Generate standard reports automatically from source systems on a schedule. AI drafts the commentary and a person edits it.",tool:"Reporting tools, report generation, AI drafting",human:"Check figures, add insight and explain variances.",risk:"Data quality across systems. Reports should link back to source."},
+"Budget analysis":{c:"Medium",why:"Gathering and comparing numbers can be automated, but interpreting them and agreeing assumptions needs finance judgement.",how:"Automate variance calculation and forecast baselines. Analysts focus on explaining and challenging the numbers.",tool:"Analytics tools, forecasting models",human:"Interpret results, challenge assumptions and advise managers.",risk:"Moderate. Value shifts from calculation to advice."},
+"Audit and compliance":{c:"Low",why:"Audit relies on independent judgement and accountability to regulators. Automation can help with sampling but not the opinion.",how:"Not automated. Analytics can speed up testing.",tool:"Control testing analytics (supporting only)",human:"Form the opinion, interview staff and report to the Board.",risk:"Independence requirements."},
+"Routine monitoring":{c:"High",why:"Watching readings and alarms against known limits is rule-based. Sensors and software can do it continuously, which people cannot.",how:"Automated condition monitoring raises alerts when values leave range. Operators receive prioritised alerts instead of walking rounds.",tool:"SCADA/condition monitoring, alert rules",human:"Respond to alerts and decide on action.",risk:"Alert fatigue if thresholds are poorly set. Plant must be instrumented."},
+"Log keeping":{c:"High",why:"Operating logs are records of events that systems already capture. Writing them by hand is duplicate work.",how:"Logs are filled automatically from system events. Operators add notes only for unusual events.",tool:"Digital logbook, system event capture",human:"Add context for exceptions.",risk:"Low. Some sites may still need a signed record."},
+"Equipment operation":{c:"Low",why:"Operating plant equipment requires presence, judgement and safety accountability, especially under abnormal conditions.",how:"Not automated. Advisory tools can optimise settings.",tool:"Optimisation advice (supporting only)",human:"Operate and take responsibility for safe running.",risk:"Safety critical."},
+"Emergency response":{c:"Low",why:"Emergencies are unpredictable and need fast human judgement and physical action.",how:"Not automated. Tools can speed up alerts and information.",tool:"Alerting (supporting only)",human:"Decide and act.",risk:"Safety critical."},
+"Drafting and documentation":{c:"High",why:"Drafting standard documents and specifications follows templates and past examples. AI can produce a first version.",how:"Generate drafts from templates and project data. Engineers review and correct.",tool:"Document generation, AI drafting, template library",human:"Review technical content and sign off.",risk:"Errors in technical content. Always require engineer review."},
+"Data compilation":{c:"High",why:"Collecting and combining data from several sources is mechanical and repeated.",how:"Automatic data pipelines gather, clean and combine data into a ready dataset.",tool:"Data pipeline, integration tools",human:"Check anomalies and define what is needed.",risk:"Depends on access to source systems (Payroll excluded)."},
+"Design":{c:"Low",why:"Engineering design requires creativity and professional responsibility. AI can assist but a licensed engineer must own it.",how:"Not automated. Design tools can suggest options.",tool:"Design assistance (supporting only)",human:"Design and take professional responsibility.",risk:"Professional liability."},
+"Project coordination":{c:"Medium",why:"Status tracking and reminders can be automated, but negotiating priorities and resolving conflicts needs people.",how:"Automate status updates, reminders and risk flags. Coordinators focus on decisions and stakeholders.",tool:"Project tracking tools, automated reporting",human:"Resolve issues and align stakeholders.",risk:"Moderate."},
+"Inspection reporting":{c:"High",why:"Writing up an inspection is structured. Findings can be captured on a mobile form or from photos and turned into a report automatically.",how:"Mobile capture with photo recognition and auto-generated reports. Inspectors only confirm.",tool:"Field app, image recognition, report generation",human:"Do the inspection and confirm findings.",risk:"Image quality in the field."},
+"Scheduling":{c:"High",why:"Scheduling crews and jobs is an optimisation problem with clear rules (skills, location, priority) that software handles well.",how:"An optimiser creates schedules and updates them when jobs change. Planners approve exceptions.",tool:"Scheduling optimiser, field service system",human:"Handle special requests and approve changes.",risk:"Needs good data on crew skills and location."},
+"Line repair":{c:"Low",why:"Repairing lines is physical, dangerous work that needs trained crews.",how:"Not automated. Drones and sensors may help locate faults.",tool:"Drones, sensors (supporting only)",human:"Perform the repair safely.",risk:"Safety critical."},
+"Emergency restoration":{c:"Low",why:"Restoring supply after outages needs rapid physical response and judgement.",how:"Not automated. Outage analytics can speed up fault location.",tool:"Outage analytics (supporting only)",human:"Lead restoration.",risk:"Safety critical."},
+"Ticket triage":{c:"High",why:"Sorting tickets by category and priority follows patterns learned from past tickets.",how:"AI classifies, prioritises and routes tickets, and resolves common requests automatically.",tool:"Ticket classification, automation rules",human:"Handle complex or new issues.",risk:"Misrouting during early use. Monitor accuracy."},
+"Report generation":{c:"High",why:"Standard IT reports pull the same figures on a schedule.",how:"Generate automatically from monitoring and ticket data.",tool:"Reporting tools",human:"Interpret trends.",risk:"Low."},
+"Development":{c:"Low",why:"Building new software needs problem solving and design decisions. AI assistants help but do not replace developers.",how:"Not automated. Code assistants raise productivity.",tool:"Code assistants (supporting only)",human:"Design, build and review.",risk:"Productivity gain is not headcount reduction."},
+"Security operations":{c:"Low",why:"Responding to security incidents needs judgement against adversaries, and accountability.",how:"Not automated. Detection tools prioritise alerts.",tool:"Detection tools (supporting only)",human:"Investigate and respond.",risk:"Critical."}
+};
+var TAIDEF={high:{c:"Medium",why:"Looks rule-based and repetitive, with clear inputs and outputs.",how:"Automate the routine path with rules or AI and send exceptions to a person.",tool:"To be confirmed with the unit",human:"Handle exceptions and check quality.",risk:"Not yet reviewed with the unit."},med:{c:"Low",why:"Part of the task is routine but exceptions need judgement.",how:"Automate the routine steps and keep a person for the rest.",tool:"To be confirmed with the unit",human:"Decide on exceptions.",risk:"Not yet reviewed with the unit."},low:{c:"Medium",why:"Needs physical presence or human judgement.",how:"Not automated.",tool:"None",human:"Whole task stays with people.",risk:"Not yet reviewed with the unit."}};
+function aiDetail(t){var d=TAI[t.name]||TAIDEF[t.lvl];return '<details class="aid"><summary>See reasoning</summary><dl><dt>Why this level</dt><dd>'+d.why+'</dd><dt>How it would be automated</dt><dd>'+d.how+'</dd><dt>Enabling tools</dt><dd>'+d.tool+'</dd><dt>What stays with people</dt><dd>'+d.human+'</dd><dt>Watch out for</dt><dd>'+d.risk+'</dd></dl></details>'}
+FAM.forEach(function(f){f.tasks=f.tasks.map(function(t,i){return {id:f.id+i,name:t[0],w:t[1],ai:!!t[2],lvl:t[2]?'high':(MED.indexOf(t[0])>=0?'med':'low'),src:'AI suggestion',skills:(TSK[t[0]]||[]).slice(),rev:false}});recompute(f);f.exp0=f.exp;f.orig=JSON.parse(JSON.stringify(f.tasks))});
+function snapOf(f){var a=0;f.tasks.forEach(function(t){if(t.ai)a+=t.w});return {exp:f.exp,share:f.tot?a/f.tot:0}}
+function dexp(f){return f.exp}
+function isPub(f){return validated(f)}
+function stamp(){return new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
+function initState(f){var m=f.id==='meter';f.tasks.forEach(function(t){t.rev=m;t.upd=m?'12 Oct 2026, 09:30':null});}
+FAM.forEach(function(f){initState(f);f.orig=JSON.parse(JSON.stringify(f.tasks))});
+var SC={base:{label:'Base',attr:0,abs:.60,ext:.70}};
+var FIX={trainShare:.8};
+var DEST={meter:[
+ {t:'Stay in Field Metering, with emerging tasks',split:.30,desc:'Same job family and title, tasks change. Smart-meter data checks and remote diagnostics replace manual reading',add:['Smart meter data validation','Remote diagnostics'],keep:['Meter knowledge','Field routes','Safety'],tier:'assumed'},
+ {t:'Smart meter and IoT field technician',split:.28,ov:78,add:['Device configuration','IoT commissioning'],keep:['Meter knowledge','Field routes','Safety'],tier:'inferred'},
+ {t:'Grid asset inspection',split:.17,ov:62,add:['Inspection methods','Asset recording'],keep:['Field routes','Safety'],tier:'inferred'},
+ {t:'Customer field service',split:.14,ov:55,add:['Customer communication','Billing basics'],keep:['Field routes','Meter knowledge'],tier:'assumed'},
+ {t:'Data quality and exceptions analyst',split:.11,ov:38,add:['Data tools','Exception handling'],keep:['Reading validation'],tier:'assumed'}
+],
+ bill:[
+  {t:'Stay in Billing, with emerging tasks',split:0.35,desc:'Same family and title. Staff review exceptions that automated billing flags',add:['Exception handling','Automation oversight'],keep:['Billing rules','Customer handling'],tier:'assumed'},
+  {t:'Customer experience specialist',split:0.3,ov:66,add:['Journey analysis','Case escalation'],keep:['Customer handling','Complaint resolution'],tier:'inferred'},
+  {t:'Revenue assurance analyst',split:0.2,ov:52,add:['Data analysis','Anomaly detection'],keep:['Billing rules','Payment reconciliation'],tier:'assumed'},
+  {t:'Field coordination planner',split:0.15,ov:48,add:['Scheduling tools','Route planning'],keep:['Field coordination'],tier:'assumed'}],
+ fin:[
+  {t:'Stay in Finance, with emerging tasks',split:0.4,desc:'Same family and title. Analysts move from routine entries to review and analysis',add:['Analytics tools','Control testing'],keep:['Accounting standards','Reporting'],tier:'assumed'},
+  {t:'Financial analyst',split:0.3,ov:70,add:['Forecasting','Business partnering'],keep:['Reconciliation','Reporting'],tier:'inferred'},
+  {t:'Internal audit support',split:0.2,ov:58,add:['Audit methods','Risk assessment'],keep:['Accounting standards','Compliance'],tier:'inferred'},
+  {t:'Procurement and contract analyst',split:0.1,ov:44,add:['Contract review','Vendor evaluation'],keep:['Budget analysis'],tier:'assumed'}],
+ plant:[
+  {t:'Stay in Plant Operations, with emerging tasks',split:0.4,desc:'Same family and title. Operators supervise monitoring tools instead of walking routine rounds',add:['Condition monitoring','Remote operations'],keep:['Equipment operation','Safety'],tier:'assumed'},
+  {t:'Predictive maintenance technician',split:0.3,ov:64,add:['Sensor data reading','Maintenance planning'],keep:['Equipment operation','Safety'],tier:'inferred'},
+  {t:'Control room operator',split:0.2,ov:58,add:['SCADA operations','Incident coordination'],keep:['Routine monitoring','Emergency response'],tier:'inferred'},
+  {t:'Safety and compliance inspector',split:0.1,ov:46,add:['Inspection methods','Regulatory knowledge'],keep:['Safety','Emergency response'],tier:'assumed'}],
+ eng:[
+  {t:'Stay in Engineering, with emerging tasks',split:0.45,desc:'Same family and title. Engineers spend less time on drafting and more on design decisions',add:['AI-assisted design review','Data modelling'],keep:['Design','Project coordination'],tier:'assumed'},
+  {t:'Digital twin and asset modelling',split:0.25,ov:60,add:['Simulation tools','Asset data modelling'],keep:['Design','Documentation'],tier:'inferred'},
+  {t:'Project controls analyst',split:0.2,ov:50,add:['Schedule analytics','Cost control'],keep:['Project coordination'],tier:'assumed'},
+  {t:'Standards and documentation lead',split:0.1,ov:42,add:['Standards governance','Knowledge management'],keep:['Documentation'],tier:'assumed'}],
+ grid:[
+  {t:'Stay in Grid Maintenance, with emerging tasks',split:0.45,desc:'Same family and title. Crews use inspection data to plan repairs',add:['Drone and sensor inspection','Maintenance analytics'],keep:['Line repair','Safety'],tier:'assumed'},
+  {t:'Grid asset inspection',split:0.25,ov:62,add:['Inspection methods','Asset recording'],keep:['Field routes','Safety'],tier:'inferred'},
+  {t:'Outage response coordinator',split:0.2,ov:55,add:['Dispatch tools','Customer updates'],keep:['Emergency restoration','Safety'],tier:'inferred'},
+  {t:'Maintenance planner',split:0.1,ov:40,add:['Planning systems','Work-order design'],keep:['Scheduling'],tier:'assumed'}],
+ it:[
+  {t:'Stay in IT, with emerging tasks',split:0.45,desc:'Same family and title. Staff move from ticket handling to building and tuning automation',add:['Automation scripting','Service design'],keep:['Development','Security operations'],tier:'assumed'},
+  {t:'Data platform engineer',split:0.25,ov:60,add:['Data pipelines','Cloud tooling'],keep:['Development'],tier:'inferred'},
+  {t:'Security analyst',split:0.2,ov:56,add:['Threat analysis','Incident response'],keep:['Security operations'],tier:'inferred'},
+  {t:'Product support lead',split:0.1,ov:40,add:['Stakeholder management','Service metrics'],keep:['Ticket triage'],tier:'assumed'}]
+};
+var BANDS={meter:[.40,.50,.10],bill:[.45,.45,.10],fin:[.35,.50,.15],plant:[.30,.55,.15],eng:[.15,.55,.30],grid:[.40,.50,.10],it:[.20,.50,.30]};
+var PROF={meter:{g:'G5',d:'Field operations',sk:[['Meter reading','measured'],['Route planning','inferred'],['Work safety certification','measured']],gap:'Device configuration'},
+ bill:{g:'G5',d:'Customer operations',sk:[['Billing rules','measured'],['Complaint handling','inferred'],['Payment reconciliation','measured']],gap:'Exception analysis'},
+ fin:{g:'G6',d:'Corporate finance',sk:[['Accounting standards','measured'],['Reporting','measured'],['Budget analysis','inferred']],gap:'Forecasting tools'},
+ plant:{g:'G6',d:'Plant operations',sk:[['Equipment operation','measured'],['Work safety certification','measured'],['Routine monitoring','inferred']],gap:'Condition monitoring'},
+ eng:{g:'G7',d:'Engineering',sk:[['Design','measured'],['Project coordination','inferred'],['Documentation','measured']],gap:'Simulation tools'},
+ grid:{g:'G5',d:'Field maintenance',sk:[['Line repair','measured'],['Work safety certification','measured'],['Inspection reporting','inferred']],gap:'Drone and sensor inspection'},
+ it:{g:'G6',d:'Digital',sk:[['Development','measured'],['Security operations','inferred'],['Ticket triage','measured']],gap:'Automation scripting'}};
+var S={mdOpen:true,intOpen:true,otab:0,stab:0,tfam:'all',skfam:'meter',screen:0,lib:'all',mapfam:'meter',nid:0,fam:'meter',scen:'base',abs:null,tfm:'all',tff:'all',dtab:0,plan:{},q:'',filt:'all'};
+
+
+/* ---------- model (mirrors the economics workbook) ---------- */
+/* ---------- live model: emerging tasks, seats, three pathways ---------- */
+var VAC={meter:2300,bill:1300,fin:700,plant:1100,eng:400,grid:500,it:120};
+var NT={
+ meter:[['Smart meter data validation',8,['Data validation','Meter reading'],'Checks readings that automated meters flag as odd'],['Remote diagnostics',6,['Device configuration','Fault inspection'],'Resolves meter faults from a control desk instead of a site visit'],['Exception handling for automated readings',5,['Exception handling'],'Cases the system cannot decide on its own'],['Automation oversight',2,['Automation oversight'],'Monitors and audits the automated reading runs']],
+ bill:[['Billing exception review',7,['Exception handling','Billing rules'],'Reviews bills that automated checks flag'],['Automation oversight',5,['Automation oversight'],'Tunes and audits chat and document automation']],
+ fin:[['Control testing',5,['Control testing','Accounting standards'],'Tests the controls around automated reconciliation'],['Analytics review',3,['Analytics tools'],'Reviews automated reports and explains variances']],
+ plant:[['Condition monitoring',6,['Condition monitoring'],'Reads sensor trends instead of walking routine rounds'],['Remote operations',4,['Remote operations','Equipment operation'],'Operates equipment from a control room']],
+ eng:[['AI-assisted design review',4,['Design','Data modelling'],'Reviews and corrects drafts that tools generate'],['Data modelling',2,['Data modelling'],'Maintains asset data that design tools rely on']],
+ grid:[['Drone and sensor inspection',4,['Drone and sensor inspection','Inspection reporting'],'Plans and reviews inspections done with drones and sensors'],['Maintenance analytics',3,['Maintenance analytics'],'Uses inspection data to schedule repairs']],
+ it:[['Automation scripting',2,['Automation scripting','Development'],'Builds and tunes the automation that replaces ticket handling'],['Service design',1,['Service design'],'Designs the services that automation delivers']]
+};
+var NFROM={
+ meter:[['Manual meter reading','Reading data entry and validation'],['Routine fault and tamper inspection'],['Reading data entry and validation','Disconnection and reconnection orders'],['Manual meter reading','Reading data entry and validation','Routine fault and tamper inspection','Disconnection and reconnection orders']],
+ bill:[['Bill generation and checks'],['Bill generation and checks','Payment reconciliation']],
+ fin:[['Routine reconciliation'],['Report preparation']],
+ plant:[['Routine monitoring','Log keeping'],['Routine monitoring']],
+ eng:[['Drafting and documentation'],['Data compilation']],
+ grid:[['Inspection reporting'],['Scheduling','Inspection reporting']],
+ it:[['Ticket triage'],['Report generation','Ticket triage']]
+};
+var PROPOSED={meter:'Meter data and diagnostics specialist',bill:'Billing automation reviewer',fin:'Finance controls specialist',plant:'Condition monitoring specialist',eng:'Design data specialist',grid:'Inspection analytics specialist',it:'Automation engineer'};
+function classify(f,n){
+  var have=PROF[f.id].sk.map(function(k){return k[0]}),held=n.skills.filter(function(k){return have.indexOf(k)>=0}).length,ov=n.skills.length?held/n.skills.length:0,fits=ov>=0.5||n.w<=3,role=null;
+  if(fits){var best=null,bs=-1;ROLES.filter(function(r){return r.fam===f.id&&!r.seats}).forEach(function(r){var sc=n.skills.filter(function(k){return r.skills.indexOf(k)>=0}).length;if(sc>bs){bs=sc;best=r}});role=best?best.name:NATIVE[f.id][0];var sr=srcRole(f,n);if(sr)role=sr}
+  return {up:fits,ov:ov,role:role,why:fits?(ov>=0.5?Math.round(ov*100)+'% of its skills are already in the family profile':'Small load ('+n.w+'% of the family), absorbed as an added duty')+(srcRole(f,n)?'. '+srcRole(f,n)+' performs the automated task'+(n.from.length>1?'s':'')+' it arises from':''):(Math.round(ov*100)+'% of its skills held and '+n.w+'% of the family: no current role fits')};
+}
+function designNeeded(f){return f.newTasks.filter(function(n){return n.dec==='accept'&&nActive(f,n)&&!classify(f,n).up}).length}
+function nActive(f,n){return n.from.some(function(nm){return f.tasks.some(function(t){return t.name===nm&&t.ai})})}
+function initNew(f){f.vac=VAC[f.id];f.rs0=DEST[f.id][0].split;f.newTasks=NT[f.id].map(function(n,i){return {id:f.id+'x'+i,name:n[0],w:n[1],skills:n[2].slice(),why:n[3],from:NFROM[f.id][i].slice(),dec:'accept'}})}
+FAM.forEach(initNew);
+function liveShare(f){var a=0;f.tasks.forEach(function(t){if(t.ai)a+=t.w});return f.tot?a/f.tot:0}
+function newLoad(f){var s=0;f.newTasks.forEach(function(n){if(n.dec==='accept'&&nActive(f,n))s+=n.w});return s/100}
+function validated(f){return f.tasks.length>0&&f.tasks.every(function(t){return t.rev&&t.lvl})}
+function gapSkills(f){var have=PROF[f.id].sk.map(function(k){return k[0]}),out=[];f.newTasks.forEach(function(n){if(n.dec==='accept'&&nActive(f,n))n.skills.forEach(function(k){if(have.indexOf(k)<0&&out.indexOf(k)<0)out.push(k)})});return out}
+function calc(scKey){
+  var p=SC[scKey],per={},T={L:0,att:0,N:0,rsh:0,red:0,capR:0,vac:0,overV:0},worst='measured',any=false,nwarn=0;
+  FAM.forEach(function(f){
+    var share=liveShare(f),L=f.people*share,att=Math.min(L,f.people*p.attr),N=L-att,capR=f.people*newLoad(f);
+    var pl=S.plan[f.id],ov=!!(pl&&pl.rs!=null),want=N*(ov?pl.rs:f.rs0),rsh=ov?want:Math.min(want,capR),red=N-rsh;
+    var overV=Math.max(0,red-f.vac),overR=Math.max(0,rsh-capR);
+    per[f.id]={L:L,att:att,N:N,rsh:rsh,red:red,capR:capR,vac:f.vac,overV:overV,overR:overR,share:share,ov:ov};
+    T.L+=L;T.att+=att;T.N+=N;T.rsh+=rsh;T.red+=red;T.capR+=capR;T.vac+=f.vac;T.overV+=overV;
+    if(overV>0.5||overR>0.5)nwarn++;
+    if(share>0){any=true;if(RANK[f.tier]>RANK[worst])worst=f.tier}
+  });
+  var reskill=(T.rsh+T.red)*FIX.trainShare;
+  return {lost:T.L,att:T.att,N:T.N,rsh:T.rsh,red:T.red,capR:T.capR,vac:T.vac,overV:T.overV,reskill:reskill,per:per,worst:worst,any:any,nwarn:nwarn,p:p};
+}
+function fmt(n){return Math.round(n).toLocaleString('en-US')}
+function tier(t){return '<span class="tier"><i class="dot '+t+'"></i>'+TIER[t]+'</span>'}
+function famById(id){return FAM.filter(function(f){return f.id===id})[0]}
+function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(function(){t.classList.remove('on')},1800)}
+
+/* ---------- shell ---------- */
+var ICON={
+ 0:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />',
+ 1:'<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
+ 2:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 17.5h7M17.5 14v7"/>',
+ 3:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
+ 4:'<path d="M5 4h14v16H5z"/><path d="M9 9h6M9 13h6M9 17h3"/>'
+};
+var NAV=[['Overview','Where AI lands',0],['AI Assessment','Review and validate tasks',1],['Workforce Transformation','Where the work can go',2]];
+function renderShell(){
+  var ch='<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+  var db='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>';
+  var open=S.mdOpen;
+  document.getElementById('nav0').innerHTML='<button type="button" class="nav" data-toggle="md" aria-expanded="'+open+'">'+db+'Masterdata'+ch+'</button>'+(open?'<button type="button" class="nav child" data-go="4" '+(S.screen===4?'aria-current="page"':'')+'>Organization</button><button type="button" class="nav child" data-go="5" '+(S.screen===5?'aria-current="page"':'')+'>Skills</button><button type="button" class="nav child" data-go="6" '+(S.screen===6?'aria-current="page"':'')+'>Tasks</button>':'');
+  var ig='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></svg>';
+  var iopen=S.intOpen;
+  document.getElementById('nav').innerHTML='<button type="button" class="nav" data-toggle="int" aria-expanded="'+iopen+'">'+ig+'Intelligence'+ch+'</button>'+(iopen?NAV.map(function(n,i){return '<button type="button" class="nav child" data-go="'+n[2]+'" '+(i===S.screen?'aria-current="page"':'')+'>'+n[0]+'</button>'}).join(''):'');
+  document.getElementById('crumb').innerHTML=(S.screen===2&&S.tfm!=='all')?'Intelligence / <button type="button" class="crumblink" data-tfm="all">Workforce Transformation</button> / <b>'+esc(famById(S.tfm).name)+'</b>':'';
+  document.getElementById('crumb').style.display=(S.screen===2&&S.tfm!=='all')?'':'none';
+  updatePill();
+}
+function updatePill(){}
+
+/* ---------- screens ---------- */
+function head(title,sub,actions){return '<div class="pagehead"><div><h1>'+title+'</h1>'+(sub?'<p class="sub">'+sub+'</p>':'')+'</div><div>'+(actions||'')+'</div></div>'}
+function exposedPE(f){return f.people*dexp(f)/100}
+function flowBar(b,c,label){var t=Math.max(b+c,1);return '<div><div class="flow" role="img" aria-label="'+label+'"><div class="f2" style="width:'+(b/t*100)+'%"></div><div class="f3" style="width:'+(c/t*100)+'%;background:var(--num)"></div></div>'+
+  '<div class="flowkey"><span><i class="sw" style="background:var(--teal)"></i>Reshape in place '+fmt(b)+'</span><span><i class="sw" style="background:var(--num)"></i>Redeploy '+fmt(c)+'</span></div></div>'}
+function resultCard(){
+  var r=calc(S.scen),nv=FAM.filter(validated).length;
+  return '<section class="card pad stack"><div><p class="note" style="margin:0 0 4px">'+nv+' of '+FAM.length+' job families validated, the rest on AI estimates</p><h2>'+fmt(r.lost)+' person-equivalents of capacity released</h2></div>'+
+   flowBar(r.rsh,r.red,'Where the released capacity goes')+
+   (r.nwarn>0?'<div class="callout"><b>'+r.nwarn+' job famil'+(r.nwarn>1?'ies need':'y needs')+' attention.</b> '+(r.overV>0.5?'Redeployment exceeds the seats we know about by '+fmt(r.overV)+'. ':'')+'Open Workforce Transformation to see which families and what they would need.</div>':'')+
+   '<p class="note" style="margin:0">The split between reshaping and redeploying is assumed ('+tier('assumed')+'). Seats are illustrative.</p></section>';
+}
+var SKDESC={
+ 'Exception handling':['Resolving cases that automated checks flag and cannot decide on their own.','Operations with high-volume automated processing: metering, billing, customer service.'],
+ 'Data validation':['Checking that readings and records are complete and plausible before they are used downstream.','Metering and any area that depends on sensor or system data.'],
+ 'Automation oversight':['Monitoring, tuning and auditing automated runs so errors are caught early.','Any family where work is moved onto automated systems.'],
+ 'Device configuration':['Setting up and adjusting smart meters and IoT devices remotely.','Field operations, metering infrastructure.'],
+ 'Fault inspection':['Diagnosing device and equipment faults from data, without a site visit.','Field operations and asset maintenance.'],
+ 'Condition monitoring':['Reading sensor trends to spot equipment wear before it fails.','Plant operations, generation and maintenance.'],
+ 'Data modelling':['Structuring asset and design data so tools and analysts can rely on it.','Engineering and planning.'],
+ 'Control testing':['Testing the controls around automated financial processes.','Finance, audit and compliance.'],
+ 'Remote operations':['Operating equipment from a control room instead of on site.','Plant operations, grid control.'],
+ 'Analytics tools':['Using reporting and analysis tools to review automated output and explain variances.','Finance and planning.'],
+ 'Drone and sensor inspection':['Planning and reviewing inspections done with drones and sensors.','Grid maintenance, transmission and distribution.'],
+ 'Maintenance analytics':['Using inspection data to schedule repairs by risk.','Grid and plant maintenance.'],
+ 'Automation scripting':['Building and tuning scripts that replace manual ticket handling.','IT and digital services.'],
+ 'Service design':['Designing the services that automation delivers to users.','IT and digital services.']
+};
+function ovSum(){
+  var r=calc(S.scen),cov=FAM.reduce(function(a,f){return a+f.people},0),sk=[],dn=0,dnf=0,nt=0;
+  FAM.forEach(function(f){gapSkills(f).forEach(function(k){if(sk.indexOf(k)<0)sk.push(k)});var d=designNeeded(f);dn+=d;if(d)dnf++;nt+=f.newTasks.filter(function(n){return n.dec==='accept'&&nActive(f,n)}).length});
+  var byExp=FAM.slice().sort(function(a,b){return exposedPE(b)-exposedPE(a)}),byRed=FAM.slice().sort(function(a,b){return r.per[b.id].red-r.per[a.id].red});
+  return {r:r,cov:cov,sk:sk,dn:dn,dnf:dnf,nt:nt,byExp:byExp,byRed:byRed,exp:r.lost}}
+function rankList(list,val,sub,max){return '<div class="rank">'+list.map(function(f,i){return '<div class="rk"><span class="rn">'+(i+1)+'</span><span class="rl"><b>'+esc(f.name)+'</b><span class="why">'+sub(f)+'</span></span><span class="rv">'+val(f)+'</span><span class="rbar"><i style="width:'+Math.round(max(f)*100)+'%"></i></span></div>'}).join('')+'</div>'}
+function capDonut(r){
+  var R=82,C=2*Math.PI*R,tot=Math.max(r.lost,1),off=0,seg=[['Reshape in place',r.rsh,'var(--teal)','Upskill an existing role in the same family'],['Redeploy',r.red,'var(--num)','Move to an existing role in another family']];
+  var arcs=seg.map(function(g){var len=g[1]/tot*C,el='<circle cx="120" cy="120" r="'+R+'" fill="none" stroke="'+g[2]+'" stroke-width="34" stroke-dasharray="'+len.toFixed(2)+' '+(C-len).toFixed(2)+'" stroke-dashoffset="'+(-off).toFixed(2)+'" transform="rotate(-90 120 120)"/>';off+=len;return el}).join('');
+  var leg=seg.map(function(g){return '<div class="cleg"><i class="sw" style="background:'+g[2]+'"></i><span><b>'+g[0]+'</b></span><span class="cv"><b>'+fmt(g[1])+'</b> <span class="why">· '+pcOf(g[1],r.lost)+'</span></span></div>'}).join('');
+  return '<div class="capwrap"><div class="capchart"><svg viewBox="0 0 240 240" width="100%" style="max-width:190px" role="img" aria-label="Share of released capacity: reshape '+pcOf(r.rsh,r.lost)+', redeploy '+pcOf(r.red,r.lost)+'"><circle cx="120" cy="120" r="'+R+'" fill="none" stroke="var(--bar-bg)" stroke-width="34"/>'+arcs+'<text x="120" y="118" text-anchor="middle" font-size="32" font-family="Source Serif 4,Georgia,serif" fill="var(--num)">'+fmt(r.lost)+'</text><text x="120" y="140" text-anchor="middle" font-size="12" fill="var(--muted)">person-equivalents</text></svg></div><div class="cleglist">'+leg+'</div></div>'}
+function newSkillsOf(f){return gapSkills(f).filter(function(k){return SKD.every(function(x){return x[0]!==k})})}
+function skillDonut(newN,exN){
+  var R=82,C=2*Math.PI*R,tot=Math.max(newN+exN,1),ln=newN/tot*C,le=exN/tot*C;
+  var seg=[['New skills',newN,'var(--amber)','Not in the skill dictionary'],['Existing skills',exN,'var(--teal)','Already in the skill dictionary']];
+  var leg=seg.map(function(g){return '<div class="cleg"><i class="sw" style="background:'+g[2]+'"></i><span><b>'+g[0]+'</b></span><span class="cv"><b>'+g[1]+'</b> <span class="why">· '+Math.round(g[1]/tot*100)+'%</span></span></div>'}).join('');
+  return '<div class="capwrap"><div class="capchart"><svg viewBox="0 0 240 240" width="100%" style="max-width:190px" role="img" aria-label="Skills: '+exN+' existing in Masterdata, '+newN+' new"><circle cx="120" cy="120" r="'+R+'" fill="none" stroke="var(--bar-bg)" stroke-width="34"/><circle cx="120" cy="120" r="'+R+'" fill="none" stroke="var(--amber)" stroke-width="34" stroke-dasharray="'+ln.toFixed(2)+' '+(C-ln).toFixed(2)+'" transform="rotate(-90 120 120)"/><circle cx="120" cy="120" r="'+R+'" fill="none" stroke="var(--teal)" stroke-width="34" stroke-dasharray="'+le.toFixed(2)+' '+(C-le).toFixed(2)+'" stroke-dashoffset="'+(-ln).toFixed(2)+'" transform="rotate(-90 120 120)"/><text x="120" y="118" text-anchor="middle" font-size="32" font-family="Source Serif 4,Georgia,serif" fill="var(--num)">'+(newN+exN)+'</text><text x="120" y="140" text-anchor="middle" font-size="12" fill="var(--muted)">skills in total</text></svg></div><div class="cleglist">'+leg+'</div></div>'}
+function screen0(){
+  var o=ovSum(),r=o.r,nv=FAM.filter(validated).length,top=o.byExp[0];
+  var ICO={users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',trend:'<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',cpu:'<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/>',reshape:'<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',redeploy:'<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>'};
+  var statx=function(t,b,c,ic){return '<div class="stat"><span class="t">'+(ic?'<span class="sico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+ICO[ic]+'</svg></span>':'')+t+'</span><b>'+b+'</b><span class="c">'+c+'</span></div>'};
+  var maxE=Math.max.apply(null,FAM.map(exposedPE)),ordE=o.byExp;
+  var vbars='<div class="vbars" role="img" aria-label="Automatable work by job family">'+ordE.map(function(f,i){var v=exposedPE(f);return '<div class="vb" title="'+esc(f.name)+': '+fmt(v)+' person-equivalents, '+dexp(f)+'% of its work"><span class="vv">'+fmt(v)+'</span><span class="vbar'+(i===0?' hi':'')+'" style="height:'+Math.max(v/maxE*100,2)+'%"></span><span class="vl">'+esc(f.name.split(' and ')[0])+'</span></div>'}).join('')+'</div>';
+  var maxR=r.per[o.byRed[0].id].red;
+  var hbars='<div class="hbars">'+o.byRed.map(function(f){var p=r.per[f.id],bad=p.overV>0.5;return '<div class="hb" title="'+esc(f.name)+': '+fmt(p.red)+' redeploy, known seats '+fmt(p.vac)+'"><span class="hl">'+esc(f.name.split(' and ')[0])+'</span><span class="htrack"><i class="'+(bad?'bad':'')+'" style="width:'+Math.max(p.red/maxR*100,2)+'%"></i></span><span class="hv">'+fmt(p.red)+'</span></div>'}).join('')+'</div><p class="note" style="margin:0"><i class="sw" style="background:var(--amber)"></i>Above known seats &nbsp; <i class="sw" style="background:var(--num)"></i>Fits known seats</p>';
+  var skM={};FAM.forEach(function(f){var have=PROF[f.id].sk.map(function(k){return k[0]});f.newTasks.forEach(function(n){if(n.dec==='accept'&&nActive(f,n))n.skills.forEach(function(k){if(have.indexOf(k)<0&&SKD.every(function(x){return x[0]!==k})){var e=skM[k]||(skM[k]={k:k,fs:[],w:0,uses:[]});var fn=f.name.split(' and ')[0];if(e.fs.indexOf(fn)<0)e.fs.push(fn);e.w+=n.w;e.uses.push({f:fn,t:n.name,w:n.w,from:n.from.filter(function(nm){return f.tasks.some(function(t){return t.name===nm&&t.ai})})})}})})});
+  var reqAll=[];FAM.forEach(function(f){f.newTasks.forEach(function(n){if(n.dec==='accept'&&nActive(f,n))n.skills.forEach(function(k){if(reqAll.indexOf(k)<0)reqAll.push(k)})})});
+  var dictNames=SKD.map(function(x){return x[0]}),skNew=reqAll.filter(function(k){return dictNames.indexOf(k)<0}).length,skEx=dictNames.length,skD='<div><h3>Existing vs new skills</h3><p class="note" style="margin:2px 0 8px">Existing: the '+skEx+' skills in the Masterdata dictionary today. New: the '+skNew+' skills the emerging tasks need that are not in the dictionary yet.</p>'+skillDonut(skNew,skEx)+'</div>';
+  var skL=Object.keys(skM).map(function(k){return skM[k]}).sort(function(x,y){return y.w-x.w}),SHOWN=8;
+  var skRow=function(x){var d=SKDESC[x.k]||['',''];return '<details class="skd"><summary><span class="bdot"></span><span class="bn">'+esc(x.k)+'<span class="why skf">'+esc(x.fs.join(', '))+'</span></span><span class="bp" style="width:auto">'+x.w+'% of work</span><span class="chev" aria-hidden="true"></span></summary><div class="skb"><p>'+esc(d[0])+'</p><p class="why"><b>Useful in:</b> '+esc(d[1])+'</p><table><thead><tr><th>Job family</th><th>Emerging task that needs it</th><th>Arises from automating</th><th class="num">Load</th></tr></thead><tbody>'+x.uses.map(function(u){return '<tr><td>'+esc(u.f)+'</td><td>'+esc(u.t)+'</td><td>'+(u.from.length?u.from.map(esc).join(', '):'–')+'</td><td class="num">'+u.w+'%</td></tr>'}).join('')+'</tbody></table></div></details>'};
+  var skRows=skL.slice(0,SHOWN).map(skRow).join('')+(skL.length>SHOWN?'<details class="skmore"><summary>Show '+(skL.length-SHOWN)+' more skills</summary><div class="blist">'+skL.slice(SHOWN).map(skRow).join('')+'</div></details>':'');
+  var rows=FAM.slice().sort(function(a,b){return r.per[b.id].L-r.per[a.id].L}).map(function(f){var p=r.per[f.id],d=designNeeded(f);return '<tr data-totf="'+f.id+'" tabindex="0" style="cursor:pointer"><td style="font-weight:500">'+esc(f.name)+'</td><td class="num">'+fmt(f.people)+'</td><td><span class="barwrap"><span class="bar'+(dexp(f)>=50?' hot':'')+'"><i style="width:'+dexp(f)+'%"></i></span><span class="pct">'+dexp(f)+'%</span></span></td><td class="num">'+fmt(p.L)+'</td><td class="num">'+fmt(p.rsh)+'</td><td class="num">'+fmt(p.red)+'</td><td class="num">'+gapSkills(f).length+'</td><td class="num">'+(d||'–')+'</td><td>'+(p.overV>0.5?'<span class="st warn">Short by '+fmt(p.overV)+'</span>':'<span class="st ok">Fits</span>')+'</td></tr>'}).join('');
+  return head('Overview','The story in one page: what AI could automate, where the released capacity goes and what it takes. Figures are live from AI Assessment and Workforce Transformation.')+
+  '<div class="strip five">'+
+   statx('Total workforce','52,000','covered: '+fmt(o.cov)+' people in '+FAM.length+' job families','users')+
+   statx('Top automatable job family',top.name.split(' and ')[0],dexp(top)+'% of its work, '+fmt(exposedPE(top))+' person-equivalents','trend')+
+   statx('Work that could be automated',fmt(o.exp),'person-equivalents, '+Math.round(o.exp/o.cov*100)+'% of covered','cpu')+
+   statx('Reshape in place',fmt(r.rsh),pcOf(r.rsh,r.lost)+' of released capacity','reshape')+
+   statx('Redeploy',fmt(r.red),pcOf(r.red,r.lost)+' of released capacity','redeploy')+'</div>'+
+  '<div class="grid2 tri"><section class="card pad stack"><div><h3>Automatable work by job family</h3><p class="note" style="margin:2px 0 0">Person-equivalents. Top family: '+esc(top.name)+', '+dexp(top)+'% of its work.</p></div>'+vbars+'</section>'+
+   '<section class="card pad stack"><div><h3>Where the capacity goes</h3><p class="note" style="margin:2px 0 0">Share of released capacity.</p></div>'+capDonut(r)+
+   '</section>'+'<section class="card pad stack"><div><h3>Existing vs new skills</h3><p class="note" style="margin:2px 0 0">Existing: the '+skEx+' skills in the Masterdata dictionary today. New: the '+skNew+' skills the emerging tasks need that are not in the dictionary yet.</p></div>'+skillDonut(skNew,skEx)+'</section></div>'+
+
+  '<div class="grid2 sd2"><section class="card pad stack"><div><h3>Redeploy by job family</h3><p class="note" style="margin:2px 0 0">People who need a place in another family, against the seats we know about.</p></div>'+hbars+'</section>'+
+   '<section class="card pad stack"><div><h3>Skills to upgrade</h3><p class="note" style="margin:2px 0 0">'+skL.length+' new skills the emerging tasks need that are not in the Masterdata dictionary yet, ranked by the share of work they support (summed across families). Click a skill for what it is and where it is needed. About '+fmt(r.reskill)+' people to train.</p></div><div class="blist">'+skRows+'</div>'+
+   '<div class="callout"><b>'+o.dn+' of '+o.nt+' emerging tasks fit no current role</b> in '+o.dnf+' job families. Role design is a client decision.</div></section></div>'+
+  '<section class="card"><div class="pad" style="padding-bottom:0"><h3>Job family drilldown</h3><p class="note" style="margin:2px 0 8px">Open a row to see its emerging tasks, roles and destinations in Workforce Transformation.</p></div><div class="scroll"><table><thead><tr><th>Job family</th><th class="num">People</th><th>Automatable work</th><th class="num">Released</th><th class="num">Reshape</th><th class="num">Redeploy</th><th class="num">Skills to add</th><th class="num">Role design</th><th>Seats</th></tr></thead><tbody>'+rows+'</tbody></table></div></section>';
+}
+function rows0(){
+  if(!document.getElementById('rows'))return;
+  var q=S.q.toLowerCase(),list=FAM.filter(function(f){
+    if(q&&f.name.toLowerCase().indexOf(q)<0)return false;
+    if(S.filt==='hot'&&dexp(f)<50)return false;
+    if(S.filt==='low'&&dexp(f)>=50)return false;return true}).sort(function(a,b){return dexp(b)-dexp(a)});
+  document.getElementById('rows').innerHTML=list.length?list.map(function(f){
+    var stt=statusChip(f);
+    return '<tr data-fam="'+f.id+'" tabindex="0" aria-selected="'+(f.id===S.fam)+'"><td style="font-weight:500">'+f.name+'</td><td class="num">'+fmt(f.people)+'</td><td><span class="barwrap"><span class="bar'+(dexp(f)>=50?' hot':'')+'"><i style="width:'+dexp(f)+'%"></i></span><span class="pct">'+dexp(f)+'%</span></span></td><td>'+stt+'</td></tr>'}).join(''):
+    '<tr><td colspan="4" class="note" style="padding:18px">No job family matches. Clear the filter to see all seven.</td></tr>';
+}
+function panel0(){
+  if(!document.getElementById('p0'))return;
+  var f=famById(S.fam);
+  document.getElementById('p0').innerHTML='<div><p class="note" style="margin:0 0 4px">Selected family</p><h2>'+f.name+'</h2></div>'+
+   '<div class="kpis"><div class="kpi"><b>'+fmt(f.people)+'</b><span>people</span></div><div class="kpi"><b>'+dexp(f)+'%</b><span>of work automatable</span></div></div>'+
+   '<details open><summary>What this number rests on</summary><ul>'+f.basis.map(function(b){return '<li>'+b+'</li>'}).join('')+'</ul></details>'+
+   '<div><h3>Tasks that make up the number</h3><div class="scroll"><table><thead><tr><th>Task</th><th class="num">Share of work</th><th>Automatable</th></tr></thead><tbody>'+f.tasks.map(function(t){return '<tr><td>'+esc(t.name)+'</td><td class="num">'+t.w+'%</td><td>'+(t.ai?'Yes':'No')+'</td></tr>'}).join('')+'</tbody></table></div></div>'+
+   '<div class="btnrow"><button type="button" class="btn" data-assess="'+f.id+'">Open in AI Assessment</button><button type="button" class="btn sec" data-toplan="'+f.id+'">Plan in Transformation</button></div>';
+}
+function pieChart(V){
+  var R=70,C=2*Math.PI*R,tot=Math.max(V.L,1),off=0;
+  var seg=[['Reshape in place',V.rsh,'var(--teal)','Stay in the family and upskill an existing role'],['Redeploy',V.red,'var(--num)','Move to an existing role in another family']];
+  var arcs=seg.map(function(g){var len=g[1]/tot*C,el='<circle cx="100" cy="100" r="'+R+'" fill="none" stroke="'+g[2]+'" stroke-width="30" stroke-dasharray="'+len.toFixed(2)+' '+(C-len).toFixed(2)+'" stroke-dashoffset="'+(-off).toFixed(2)+'" transform="rotate(-90 100 100)"/>';off+=len;return el}).join('');
+  var rows=seg.map(function(g){return '<tr><td><i class="sw" style="background:'+g[2]+'"></i> <b>'+g[0]+'</b><div class="why">'+g[3]+'</div></td><td class="num">'+fmt(g[1])+'</td><td class="num"><b>'+pcOf(g[1],V.L)+'</b></td></tr>'}).join('');
+  return '<div style="display:flex;flex-wrap:wrap;gap:24px;align-items:center"><svg width="200" height="200" viewBox="0 0 200 200" role="img" aria-label="Share of released capacity: reshape '+pcOf(V.rsh,V.L)+', redeploy '+pcOf(V.red,V.L)+'"><circle cx="100" cy="100" r="'+R+'" fill="none" stroke="var(--bar-bg)" stroke-width="30"/>'+arcs+
+   '<text x="100" y="98" text-anchor="middle" font-size="24" font-family="Source Serif 4,Georgia,serif" fill="var(--num)">'+fmt(V.L)+'</text><text x="100" y="118" text-anchor="middle" font-size="11" fill="var(--muted)">person-equivalents</text></svg>'+
+   '<div style="flex:1;min-width:300px"><table><thead><tr><th>Pathway</th><th class="num">Person-equivalents</th><th class="num">% of total</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'}
+function miniPie(V){
+  var R=48,C=2*Math.PI*R,tot=Math.max(V.L,1),off=0;
+  var seg=[['Reshape in place',V.rsh,'var(--teal)'],['Redeploy',V.red,'var(--num)']];
+  var arcs=seg.map(function(g){var len=g[1]/tot*C,el='<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="'+g[2]+'" stroke-width="20" stroke-dasharray="'+len.toFixed(2)+' '+(C-len).toFixed(2)+'" stroke-dashoffset="'+(-off).toFixed(2)+'" transform="rotate(-90 70 70)"/>';off+=len;return el}).join('');
+  var rows=seg.map(function(g){return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:13px"><span><i class="sw" style="background:'+g[2]+'"></i>'+g[0]+'</span><b>'+fmt(g[1])+' · '+pcOf(g[1],V.L)+'</b></div>'}).join('');
+  return '<div style="display:flex;flex-direction:column;align-items:center;gap:10px"><svg width="140" height="140" viewBox="0 0 140 140" role="img" aria-label="Share of released capacity by pathway"><circle cx="70" cy="70" r="'+R+'" fill="none" stroke="var(--bar-bg)" stroke-width="20"/>'+arcs+'<text x="70" y="75" text-anchor="middle" font-size="18" font-family="Source Serif 4,Georgia,serif" fill="var(--num)">'+fmt(V.L)+'</text></svg><div style="width:100%;display:grid;gap:4px">'+rows+'</div></div>'}
+function pcOf(x,t){return t>0?Math.round(x/t*100)+'%':'–'}
+function flagsOf(pf){var a=[];if(pf.overV>0.5)a.push('Redeploy exceeds known seats by '+fmt(pf.overV));if(pf.overR>0.5)a.push('Reshape exceeds new-task load by '+fmt(pf.overR));return a}
+function statusChip(f){return validated(f)?'<span class="st ok">Validated</span>':'<span class="st draft">AI estimate</span>'}
+function screen2(){
+  var r=calc(S.scen),one=S.tfm!=='all',fam=one?famById(S.tfm):null,pf=one?r.per[fam.id]:null,nv=FAM.filter(validated).length;
+  var ff=(!one&&S.tff!=='all')?famById(S.tff):null,V=one?{L:pf.L,rsh:pf.rsh,red:pf.red}:ff?{L:r.per[ff.id].L,rsh:r.per[ff.id].rsh,red:r.per[ff.id].red}:{L:r.lost,rsh:r.rsh,red:r.red},ts=FIX.trainShare;
+  var fopts='<option value="all"'+(ff?'':' selected')+'>All job families</option>'+FAM.map(function(f){return '<option value="'+f.id+'"'+(ff&&f.id===ff.id?' selected':'')+'>'+f.name+'</option>'}).join('');
+  var ctrl='<div class="card pad stack"><div class="ctrl"><div><h3><label for="tfm">Job family</label></h3><select id="tfm">'+fopts+'</select></div></div>'+
+   '<p class="note" style="margin:0">Figures come live from AI Assessment. '+nv+' of '+FAM.length+' job families are validated; the others use the AI estimate and are marked as such.</p></div>';
+  if(!one){
+    var strip='<div class="strip">'+
+     '<div class="stat"><span class="t">New skills to build</span><b>'+(ff?newSkillsOf(ff).length:FAM.reduce(function(a,f){newSkillsOf(f).forEach(function(k){if(a.indexOf(k)<0)a.push(k)});return a},[]).length)+'<small class="un">skills</small></b><span class="c">skills the emerging tasks need that are not in the Masterdata skill dictionary yet, across '+(ff?ff.newTasks.filter(function(n){return n.dec==='accept'&&nActive(ff,n)}).length:ovSum().nt)+' emerging tasks</span></div>'+
+     '<div class="stat"><span class="t">Reshape</span><b>'+fmt(V.rsh)+'<small class="un">people</small></b><span class="c">stay in the family and upskill an existing role · '+pcOf(V.rsh,V.L)+'</span></div>'+
+     '<div class="stat"><span class="t">Redeploy</span><b>'+fmt(V.red)+'<small class="un">people</small></b><span class="c">move to an existing role in another family · '+pcOf(V.red,V.L)+'</span></div>'+
+     '<div class="stat"><span class="t">Need reskilling</span><b>'+fmt((V.rsh+V.red)*ts)+'<small class="un">people</small></b><span class="c">'+fmt(V.rsh*ts)+' from reshape + '+fmt(V.red*ts)+' from redeploy (assumed '+Math.round(ts*100)+'% have a skill gap)</span></div></div>';
+    var bar='<div class="card pad stack"><h3>Share of the released capacity by pathway</h3>'+pieChart(V)+'<p class="note" style="margin:0">The two pathways add up to 100% of the released capacity. Reskilling is not a pathway: it is the training that reshaping and redeploying need.</p></div>';
+    var list=(ff?[ff]:FAM).slice().sort(function(a,b){return r.per[b.id].L-r.per[a.id].L});
+    var rows=list.map(function(f){var q=r.per[f.id],dn=designNeeded(f);
+      return '<tr data-tfm="'+f.id+'" tabindex="0"><td style="font-weight:500">'+esc(f.name)+'</td><td class="num">'+fmt(q.L)+'</td><td class="num">'+fmt(q.rsh)+'</td><td class="num">'+fmt(q.red)+'</td>'+
+       '<td style="min-width:110px"><div class="flow" style="height:10px"><div class="f2" style="width:'+(q.rsh/Math.max(q.L,1)*100)+'%"></div><div class="f3" style="width:'+(q.red/Math.max(q.L,1)*100)+'%;background:var(--num)"></div></div></td>'+
+       '<td class="num">'+(dn||'–')+'</td><td><button type="button" class="ghost" data-tfm="'+f.id+'">Open</button></td></tr>'}).join('');
+    var tbl='<section class="card"><div class="scroll"><table><thead><tr><th>Job family</th><th class="num">Released</th><th class="num">Reshape</th><th class="num">Redeploy</th><th>Split</th><th class="num">Role design needed</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div><div class="legend"><span>'+(ff?'Showing '+esc(ff.name)+' only. Choose All job families to compare them. ':'')+'Open a job family to see its emerging tasks, the roles that get upskilled and the roles people could move to. Figures are person-equivalents. Role design needed counts emerging tasks that fit no current role: a client decision.</span></div></section>';
+    return head('Workforce Transformation','Where the capacity released by automation goes: reshape existing roles in place, or redeploy to existing roles in other job families. All of the released capacity is assigned to one of the two.')+ctrl+strip+bar+tbl;
+  }
+  var fl=flagsOf(pf),have=PROF[fam.id].sk.map(function(k){return k[0]});
+  var act=fam.newTasks.filter(function(n){return n.dec==='accept'&&nActive(fam,n)}),W=act.reduce(function(a,n){return a+n.w},0);
+  var nup=0,ndn=0;act.forEach(function(n){if(classify(fam,n).up)nup++;else ndn++});
+  var nrows=fam.newTasks.map(function(n){var on=nActive(fam,n),cl=classify(fam,n);
+    var src=n.from.map(function(nm){var t=fam.tasks.filter(function(x){return x.name===nm})[0];return '<span class="chip'+(t&&t.ai?'':' add')+'">'+esc(nm)+(t?' · '+t.w+'%':'')+(t&&t.ai?'':' (kept manual)')+'</span>'}).join('');
+    var nw=n.skills.filter(function(k){return have.indexOf(k)<0}).length;
+    return '<div class="nkc'+(on?'':' off')+(cl.up?'':' dz')+'"><div class="nkh"><div class="nkn">'+esc(n.name)+(on?'':' <span class="st draft">Not needed</span>')+'</div>'+'<div class="nkbs">'+(cl.up?'':'<span class="nkb nr">New role</span>')+(nw?'<span class="nkb">'+nw+' new skill'+(nw>1?'s':'')+' to build</span>':'<span class="nkb ok">Skills already held</span>')+'</div></div>'+
+     '<p class="nkd">'+esc(n.why)+'</p>'+
+     '<div class="nks"><span class="nkk">Skills required</span><div class="chips">'+n.skills.map(function(k){return '<span class="chip'+(have.indexOf(k)<0?' add':'')+'">'+k+'</span>'}).join('')+'</div></div>'+
+     '<details class="nkx"><summary>Where this task comes from and where it lands</summary><div class="why" style="margin-top:8px">Arises from automated:</div><div class="chips" style="margin-top:3px">'+src+'</div><div class="why" style="margin-top:8px"><b>'+(cl.up?'Performed by an existing role: '+esc(cl.role):'Needs a new role: no current role fits, a client decision')+'.</b> '+cl.why+'</div></details></div>'}).join('');
+  var nt='';
+  var rmap={},order=[];
+  act.forEach(function(n){var cl=classify(fam,n),key=cl.up?cl.role:'__design';if(!rmap[key]){rmap[key]={role:cl.up?cl.role:null,tasks:[],w:0,sk:[]};order.push(key)}var o=rmap[key];o.tasks.push(n.name);o.w+=n.w;n.skills.forEach(function(k){if(have.indexOf(k)<0&&o.sk.indexOf(k)<0)o.sk.push(k)})});
+  order.sort(function(a,b){return rmap[b].w-rmap[a].w});
+  var gE=[],gN='',pE=0,pN=0,dused=0;
+  var skl=function(o,lab){return '<div class="rsk"><span class="rsplus" aria-hidden="true">+</span><div><span class="nkk">'+lab+'</span><div class="chips" style="margin-top:5px">'+(o.sk.length?o.sk.map(function(x){return '<span class="chip add">'+x+'</span>'}).join(''):'<span class="why">No new skills</span>')+'</div></div></div>'};
+  order.forEach(function(k){var o=rmap[k],ppl=W>0?pf.rsh*o.w/W:0;
+    var tk='<div class="why">Takes on: '+o.tasks.map(esc).join(', ')+'</div>';
+    if(o.role){pE+=ppl;gE.push('<div class="rsr"><span class="rsn">'+esc(o.role)+'</span>'+tk+skl(o,'New skills added')+'</div>')}
+    else{pN+=ppl;gN='<div class="rsr nw"><span class="rsn rsq">Role to be defined</span>'+tk+skl(o,'Skills the role needs')+'</div>'}});
+  var rblock=order.length?'<div class="rsw">'+
+    '<div class="rsp2"><div class="rsh2"><div><b>Existing role</b><span>The role and title stay. Skills are added.</span></div><div class="rsbig">'+fmt(pE)+'<small>people</small></div></div><div class="rsbody">'+(gE.length?gE.join(''):'<p class="why">None in this family.</p>')+'</div></div>'+
+    '<div class="rsp2 nw"><div class="rsh2"><div><b>New role</b><span>No current role fits. The client decides.</span></div><div class="rsbig">'+fmt(pN)+'<small>people</small></div></div><div class="rsbody">'+(gN||'<p class="why">None in this family.</p>')+'</div></div></div>':
+    '<p class="note" style="margin:0">No emerging tasks are counted, so nothing can be reshaped in place and the whole capacity is redeployed.</p>';
+  var D=DEST[fam.id].slice(1).map(function(d){var fit=d.keep.length/(d.keep.length+d.add.length);return {d:d,fit:fit,w:fit*d.seats}}).sort(function(a,b){return b.fit-a.fit}),sw=D.reduce(function(a,x){return a+x.w},0),used=0;
+  var dcards=D.map(function(x,i){var d=x.d,c=i<D.length-1?Math.round(pf.red*x.w/sw):Math.round(pf.red)-used;used+=c;
+    var tot=d.keep.length+d.add.length,pctf=Math.round(x.fit*100);
+    return '<div class="dpc"><div class="dph"><div><span class="nkk">Moves to</span><span class="rsn">'+esc(d.t)+'</span><span class="dpf">Job family: '+esc(famById(d.tfam).name)+'</span></div><div class="dpn"><b>'+fmt(c)+'</b><small>people · '+fmt(d.seats)+' open seats</small>'+(c>d.seats?'<small class="dpw">'+fmt(c-d.seats)+' above open seats</small>':'')+'</div></div>'+
+     '<div class="dpb"><div><span class="nkk">Why it fits</span><div class="dpbar"><i style="width:'+pctf+'%"></i></div><p class="dpt">Skill fit <b>'+pctf+'%</b>. People already hold '+d.keep.length+' of '+tot+' skills this role needs: '+d.keep.map(esc).join(', ')+'.</p></div>'+
+     '<div><span class="nkk">Skills still missing</span><div class="chips" style="margin-top:6px">'+d.add.map(function(k){return '<span class="chip add">'+esc(k)+'</span>'}).join('')+'</div></div></div></div>'}).join('');
+  var famsOut={};D.forEach(function(x){famsOut[x.d.tfam]=1});
+  var flowC='<section class="card pad stack"><div><h3>Where the released capacity goes</h3><p class="note" style="margin:2px 0 0">AI could take over '+Math.round(pf.share*100)+'% of the work in '+esc(fam.name)+', which releases '+fmt(pf.L)+' person-equivalents. That capacity either stays in the family (reshape) or moves to another one (redeploy).</p></div>'+flowSvg(pf.L,pf.rsh,pf.red,pE,pN,D.length,Object.keys(famsOut).length,pf.share)+'</section>';
+  var chp=function(arr,addAll){return arr.length?'<div class="ch">'+arr.map(function(k){return '<span class="chip'+(addAll||have.indexOf(k)<0?' add':'')+'">'+esc(k)+'</span>'}).join('')+'</div>':'<span class="why">None</span>'};
+  var etr=fam.newTasks.map(function(n,ix){var on=nActive(fam,n),cl=classify(fam,n);
+    var src=n.from.map(function(nm){var t=fam.tasks.filter(function(x){return x.name===nm})[0];return esc(nm)+(t?' ('+t.w+'%'+(t.ai?'':', kept manual')+')':'')}).join(', ');
+    return '<tr class="txr'+(on?'':' off')+'" data-tx="e'+ix+'"><td><div class="tn">'+esc(n.name)+(on?'':' <span class="why">· not needed</span>')+'</div><div class="td">'+esc(n.why)+'</div></td><td>'+chp(n.skills)+'</td><td>'+(cl.up?'<b style="font-weight:600">'+esc(cl.role)+'</b><div class="sub">Existing role</div>':'<b class="nrt">New role</b><div class="sub">To be defined</div>')+'</td><td class="num">'+n.w+'%</td><td class="cv"></td></tr>'+
+     '<tr class="txd" hidden><td colspan="5"><div class="why"><b>Arises from automating:</b> '+src+'</div><div class="why" style="margin-top:6px"><b>Why it lands there:</b> '+cl.why+'</div></td></tr>'}).join('');
+  var rrows=order.map(function(k){var o=rmap[k],ppl=W>0?pf.rsh*o.w/W:0;
+    return '<tr><td>'+(o.role?'<span class="tn">'+esc(o.role)+'</span><div class="sub">Existing role</div>':'<span class="nw2">Role to be defined</span><div class="sub">New role: no current role fits, a client decision</div>')+'</td><td><div class="why">'+o.tasks.map(esc).join(', ')+'</div></td><td>'+chp(o.sk,true)+'</td><td class="num"><span class="big">'+fmt(ppl)+'</span><div class="sub">people</div></td></tr>'}).join('');
+  var tab1='<section class="card"><div class="txh"><h3>Emerging tasks</h3><p class="note" style="margin:3px 0 0">Work that appears once AI takes over routine tasks, described by what it is and the skills it needs, not by a job title. Amber skills are new to this family. Click a row to see where it comes from.</p></div><div class="scroll"><table class="tx"><thead><tr><th>Task</th><th>Skills required</th><th>Performed by</th><th class="num">Load</th><th></th></tr></thead><tbody>'+etr+'</tbody></table></div>'+
+   '<div class="txf">Counted: <b>'+Math.round(newLoad(fam)*100)+'%</b> of the family, about <b>'+fmt(pf.capR)+'</b> person-equivalents. This is the ceiling for reshaping in place. '+nup+' task'+(nup===1?'':'s')+' upskill an existing role and '+ndn+' need'+(ndn===1?'s':'')+' a new role, a client decision. If a source task is kept manual in AI Assessment, its emerging task drops out.</div></section>'+
+   '<section class="card"><div class="txh"><h3>Reshape: who stays in '+esc(fam.name)+'</h3><p class="note" style="margin:3px 0 0">Emerging tasks land in a role that already exists, which gains new skills, or in a role that does not exist yet. People are shared across them by the load of the tasks.</p></div>'+
+   (order.length?'<div class="scroll"><table class="tx"><thead><tr><th>Role</th><th>Takes on</th><th>Skills to add</th><th class="num">People</th></tr></thead><tbody>'+rrows+'</tbody><tfoot><tr><td colspan="3">Total reshape</td><td class="num">'+fmt(pf.rsh)+'</td></tr></tfoot></table></div>':'<p class="note txh" style="margin:0">No emerging tasks are counted, so nothing can be reshaped in place and the whole capacity is redeployed.</p>')+'</section>';
+  var remain=Math.round(pf.red),drows=D.map(function(x,i){var d=x.d,c=Math.min(d.seats,remain);remain-=c;var tot=d.keep.length+d.add.length,pctf=Math.round(x.fit*100);
+    return '<tr class="txr" data-tx="d'+i+'"><td><div class="tn">'+esc(d.t)+'</div><div class="sub">'+esc(famById(d.tfam).name)+'</div></td><td class="num"><span class="big">'+fmt(c)+'</span><div class="sub">people</div></td><td class="num">'+fmt(d.seats)+(c>=d.seats?'<div class="sub">full</div>':'<div class="sub">'+fmt(d.seats-c)+' left</div>')+'</td><td><div class="fit"><span class="barwrap" style="flex:1"><span class="bar"><i style="width:'+pctf+'%"></i></span></span><b>'+pctf+'%</b></div></td><td>'+chp(d.add,true)+'</td><td class="cv"></td></tr>'+
+     '<tr class="txd" hidden><td colspan="6"><div class="why"><b>Why it fits:</b> people already hold '+d.keep.length+' of '+tot+' skills this role needs: '+d.keep.map(esc).join(', ')+'.</div></td></tr>'}).join('');
+  var tab2='<section class="card"><div class="txh"><h3>Redeploy: where people could move</h3><p class="note" style="margin:3px 0 0">What reshaping cannot absorb moves to existing roles in other job families. Skill fit is the share of the role\'s skills people already hold. Roles fill in order of skill fit, up to their open seats. Fit and seats are illustrative.</p></div>'+(pf.overV>0.5?'<div style="padding:0 22px 16px;display:grid;gap:10px"><div class="callout"><b>Check this plan.</b> '+fmt(pf.overV)+' people have no known open seat: the roles below can take '+fmt(D.reduce(function(a,x){return a+x.d.seats},0))+' people and '+fmt(pf.red)+' need a place.</div><div class="prop"><b>Proposed: enlarge reshape.</b> If emerging tasks add about '+(pf.overV/fam.people*100).toFixed(1)+'% more work to the family ('+fmt(pf.overV)+' person-equivalents), reshape grows from '+fmt(pf.rsh)+' to '+fmt(pf.rsh+pf.overV)+' and redeploy drops from '+fmt(pf.red)+' to '+fmt(pf.red-pf.overV)+', which fits the known seats. '+(fam.id==='meter'?'Worth exploring with unit managers: further work that appears around smart meters, such as support for customers who move to smart meters and coaching on the new tools. ':'Worth exploring with unit managers: further work that appears around the automated tasks. ')+'These are ideas to test and are not counted in any figure here.</div></div>':'')+
+   '<div class="scroll"><table class="tx"><thead><tr><th>Moves to</th><th class="num">People</th><th class="num">Open seats</th><th>Skill fit</th><th>Skills still missing</th><th></th></tr></thead><tbody>'+drows+(remain>0?'<tr><td><div class="tn nw2">No known seat yet</div><div class="sub">People who could not be placed in the roles above</div></td><td class="num"><span class="big" style="color:var(--amber)">'+fmt(remain)+'</span><div class="sub">people</div></td><td colspan="4"></td></tr>':'')+'</tbody><tfoot><tr><td>Total redeploy</td><td class="num">'+fmt(pf.red)+'</td><td class="num">'+fmt(D.reduce(function(a,x){return a+x.d.seats},0))+'</td><td colspan="3"></td></tr></tfoot></table></div></section>';
+  var gp=[tab1,tab2];
+  var tc=(pf.rsh+pf.red)*ts*SC[S.scen].train,bn=pf.red*r.unit;
+  var kv=function(a,b){return '<tr><td>'+a+'</td><td>'+b+'</td></tr>'};
+  var nat=fam.tasks.filter(function(t){return t.ai}).length;
+  var aside='<aside class="card pad stack sticky"><div class="srcline"><span>'+fmt(fam.people)+' people</span></div>'+
+   (fl.length?'<div class="callout"><b>Check this plan.</b> '+fl.join('. ')+'.</div>':'')+
+   '<div><h3>Where the released capacity goes</h3>'+miniPie({L:pf.L,rsh:pf.rsh,red:pf.red})+'</div>'+
+   '<div><h3>At a glance</h3><table class="kv"><tbody>'+kv('Work automatable',Math.round(pf.share*100)+'% · '+nat+' of '+fam.tasks.length+' tasks')+kv('Capacity released',fmt(pf.L))+kv('Reshape (ceiling '+fmt(pf.capR)+')',fmt(pf.rsh))+kv('Redeploy (seats '+fmt(fam.vac)+')',fmt(pf.red))+kv('Emerging tasks land as',nup+' upskill · '+ndn+' role design')+kv('Need reskilling',fmt((pf.rsh+pf.red)*ts))+'</tbody></table></div>'+
+   '<p class="note" style="margin:0">Seats are illustrative.</p>'+
+   '<div><button type="button" class="btn sec" data-assess="'+fam.id+'">Open in AI Assessment</button></div></aside>';
+  var DT=['Reshape','Redeploy'],dt=Math.min(S.dtab||0,1);
+  var tabs='<div class="tabs" role="tablist" aria-label="Transformation plan">'+DT.map(function(t,i){return '<button type="button" role="tab" class="tab" data-dtab="'+i+'" aria-selected="'+(i===dt)+'">'+t+'</button>'}).join('')+'</div>';
+  return head(esc(fam.name),'Transformation plan: what automation releases, the emerging tasks that reshape existing roles, and where the rest of the people could move.','<span style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn sec" data-assess="'+fam.id+'">Open in AI Assessment</button><button type="button" class="btn sec" data-tfm="all">← Back to all job families</button></span>')+'<div class="stack">'+flowC+tabs+gp[dt]+'</div>';
+}
+function flowSvg(L,rsh,red,pE,pN,nDest,nFam,share){
+  if(L<=0)return '<p class="note">No capacity is released for this job family.</p>';
+  var H=112,y0=16,g=18,s=H/L,hR=rsh*s,hD=red*s,xL=250,xM=540,w=14,xc=(xL+w+xM)/2,tot=y0+H+g+14;
+  var flow=function(ya,h,yb,col){if(h<=0.5)return '';return '<path d="M'+(xL+w)+','+ya+' C'+xc+','+ya+' '+xc+','+yb+' '+xM+','+yb+' L'+xM+','+(yb+h)+' C'+xc+','+(yb+h)+' '+xc+','+(ya+h)+' '+(xL+w)+','+(ya+h)+' Z" fill="'+col+'" opacity=".28"/>'};
+  var yR=y0,yD=y0+hR+g,t=function(x,y,txt,sz,fill,wt,anch){return '<text x="'+x+'" y="'+y+'" font-size="'+sz+'" fill="'+fill+'" font-weight="'+(wt||400)+'"'+(anch?' text-anchor="'+anch+'"':'')+'>'+txt+'</text>'};
+  var out='<svg class="flowsvg" viewBox="0 0 900 '+tot+'" role="img" aria-label="Released capacity '+fmt(L)+': reshape '+fmt(rsh)+', redeploy '+fmt(red)+'">';
+  out+=flow(y0,hR,yR,'var(--teal)')+flow(y0+hR,hD,yD,'var(--num)');
+  out+='<rect x="'+xL+'" y="'+y0+'" width="'+w+'" height="'+H+'" rx="3" fill="var(--ink)"/>';
+  out+=t(xL-14,y0+H/2-14,'Released capacity',13,'var(--muted)',500,'end')+t(xL-14,y0+H/2+12,fmt(L),26,'var(--ink)',600,'end')+t(xL-14,y0+H/2+30,'person-equivalents',12,'var(--muted)',400,'end');
+  if(hR>0.5){out+='<rect x="'+xM+'" y="'+yR+'" width="'+w+'" height="'+hR+'" rx="3" fill="var(--teal)"/>';var my=yR+Math.max(hR/2,20);
+    out+=t(xM+26,my-8,'Reshape · '+fmt(rsh)+' people · '+pcOf(rsh,L),16,'var(--ink)',600)+t(xM+26,my+12,fmt(pE)+' in an existing role, '+fmt(pN)+' in a new role',13,'var(--muted)')}
+  if(hD>0.5){out+='<rect x="'+xM+'" y="'+yD+'" width="'+w+'" height="'+hD+'" rx="3" fill="var(--num)"/>';var dy=yD+Math.max(hD/2,20);
+    out+=t(xM+26,dy-14,'Redeploy · '+fmt(red)+' people · '+pcOf(red,L),16,'var(--ink)',600)+t(xM+26,dy+6,'Move to '+nDest+' existing roles in '+nFam+' other job famil'+(nFam===1?'y':'ies'),13,'var(--muted)')}
+  return out+'</svg>'}
+function S_p(){return SC[S.scen]}
+function esc(x){return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function assess(t){var n=t.name.toLowerCase();return /(entry|report|reconcil|log |log$|schedul|monitor|data|record|bill|invoice|triage|document|draft|compil)/.test(n)?'high':(/(coordinat|review|analy|plan|inspect|support|admin)/.test(n)?'med':'low')}
+function allRev(f){return f.tasks.length>0&&f.tasks.every(function(t){return t.rev})}
+function allAssessed(f){return f.tasks.every(function(t){return !!t.lvl})}
+function gate(f){return {w:f.tot===100,a:allAssessed(f),v:allRev(f)}}
+function screenLib(){
+  var opts='<option value="all"'+(S.lib==='all'?' selected':'')+'>All job families</option>'+FAM.map(function(f){return '<option value="'+f.id+'"'+(f.id===S.lib?' selected':'')+'>'+f.name+'</option>'}).join('');
+  return head('AI Assessment','','<button type="button" class="btn sec" id="libreset">Reset decisions to AI suggestions</button>')+
+  '<div class="card pad stack"><div style="max-width:460px"><h3><label for="libfam">Job family</label></h3><select id="libfam">'+opts+'</select></div></div>'+
+  '<section class="stack"><div class="strip" id="libsum"></div><section class="card"><div class="scroll"><table><thead><tr><th>Task</th><th>Job family</th><th class="num">Share of work (%)</th><th>Required skills</th><th>AI assessment</th><th>Your decision</th><th>Last updated at</th></tr></thead><tbody id="libtbl"></tbody></table></div><div class="legend" id="libact"></div></section></section>';
+}
+function updateLib(){
+  var isAll=S.lib==='all',f;
+  if(isAll){var pp=0,pe=0,pe0=0,tk=[];FAM.forEach(function(g){pp+=g.people;pe+=g.people*g.exp/100;pe0+=g.people*g.exp0/100;g.tasks.forEach(function(t){tk.push(t)})});f={tasks:tk,people:pp,exp:pe/pp*100,exp0:pe0/pp*100}}else f=famById(S.lib);
+  var nrev=f.tasks.filter(function(t){return t.rev}).length,val=isAll?FAM.every(validated):validated(f);
+  document.getElementById('libtbl').innerHTML=f.tasks.map(function(t){
+    var add=t.src==='Added by user',chg=t.lvl&&t.ai!==(t.lvl==='high');
+    return '<tr><td>'+esc(t.name)+(add?' <span class="chip add">Added by user</span>':'')+'</td><td>'+esc(libFamOf(t).name)+'</td><td class="num">'+t.w+'%</td>'+
+     '<td>'+((t.skills&&t.skills.length)?'<div class="chips">'+t.skills.map(function(k){return '<span class="chip">'+k+'</span>'}).join('')+'</div>':'<span class="why">Not mapped</span>')+'</td>'+
+     '<td class="aicell">'+(t.lvl?'<span class="lv '+t.lvl+'">'+LVL[t.lvl]+'</span> <span class="why conf">Confidence: '+(TAI[t.name]||TAIDEF[t.lvl]).c+'</span><div class="why">'+WHY[t.lvl]+'</div>'+aiDetail(t):'<span class="why">Not analysed yet. Run the AI analysis.</span>')+'</td>'+
+     '<td><select class="dec" data-ai="'+t.id+'" aria-label="Your decision for '+esc(t.name)+'">'+(t.rev?'':'<option value="" selected disabled>Choose…</option>')+'<option value="1"'+(t.rev&&t.ai?' selected':'')+'>Automate</option><option value="0"'+(t.rev&&!t.ai?' selected':'')+'>Keep manual</option></select>'+(chg&&t.rev?' <span class="chip add">Changed</span>':'')+'</td>'+
+     '<td class="why" style="white-space:nowrap">'+(t.upd||'–')+'</td>'+
+     '</tr>'}).join('');
+  var unas=f.tasks.filter(function(t){return !t.lvl}).length;
+  document.getElementById('libact').innerHTML='<button type="button" class="btn" id="runai">Run AI analysis'+(unas?' ('+unas+' to assess)':'')+'</button><button type="button" class="ghost" id="markrev">Accept all AI suggestions</button><span>AI analysis is simulated in this prototype.</span>';
+  var status=val?'<span class="st ok">Validated</span> Every task has your decision. Overview and Workforce Transformation use these results.':'<span class="st draft">AI estimate</span> '+nrev+' of '+f.tasks.length+' tasks decided. Other pages already use these figures and mark this family as an AI estimate until every task has your decision.';
+  document.getElementById('libsum').innerHTML=
+   '<div class="stat"><span class="t">Work automatable</span><b>'+(Math.round(f.exp*10)/10)+'%</b><span class="c">'+(f.exp===f.exp0?'same as the AI suggestion':'AI suggested '+(Math.round(f.exp0*10)/10)+'%')+'</span></div>'+
+   '<div class="stat"><span class="t">Person-equivalents affected</span><b>'+fmt(f.people*f.exp/100)+'</b><span class="c">of '+fmt(f.people)+' people '+(isAll?'across all job families':'in this family')+'</span></div>'+
+   '<div class="stat"><span class="t">Tasks decided</span><b>'+nrev+'/'+f.tasks.length+'</b><span class="c">'+(nrev>=f.tasks.length?'every task has your decision':'decide every task to confirm')+'</span></div>';
+  document.getElementById('libact').insertAdjacentHTML('beforeend','<span>'+status+'</span>');
+}
+function libFams(){return S.lib==='all'?FAM:[famById(S.lib)]}
+function libTasks(){var a=[];libFams().forEach(function(f){f.tasks.forEach(function(t){a.push(t)})});return a}
+function libFamOf(t){var r=null;FAM.forEach(function(f){if(f.tasks.indexOf(t)>=0)r=f});return r}
+function libTask(id){var r=null;FAM.forEach(function(f){f.tasks.forEach(function(t){if(t.id===id)r=t})});return r}
+function libChanged(){FAM.forEach(recompute);updateLib()}
+var DRN={
+ meter:{'Smart meter and IoT field technician':['IoT device technician','it',.86],'Grid asset inspection':['Grid asset inspector','grid',1.1],'Customer field service':['Customer field service agent','bill',1.1],'Data quality and exceptions analyst':['Data quality analyst','it',.7]},
+ bill:{'Customer experience specialist':['Digital customer experience specialist','it',1.1],'Revenue assurance analyst':['Revenue assurance analyst','fin',1.1],'Field coordination planner':['Field coordination planner','grid',1.1]},
+ fin:{'Financial analyst':['Planning and cost analyst','eng',.85],'Internal audit support':['Revenue audit analyst','bill',1.1],'Procurement and contract analyst':['Plant procurement analyst','plant',1.1]},
+ plant:{'Predictive maintenance technician':['Predictive maintenance technician','grid',1.1],'Control room operator':['Network control operator','it',1.1],'Safety and compliance inspector':['Safety inspector','grid',1.1]},
+ eng:{'Digital twin and asset modelling':['Asset data modeller','it',1.1],'Project controls analyst':['Project controls analyst','fin',1.1],'Standards and documentation lead':['Standards coordinator','plant',1.1]},
+ grid:{'Grid asset inspection':['Meter and asset inspector','meter',1.1],'Outage response coordinator':['Outage response coordinator','bill',1.1],'Maintenance planner':['Maintenance planner','eng',1.1]},
+ it:{'Data platform engineer':['Data platform engineer','eng',1.1],'Security analyst':['Security analyst','plant',1.1],'Product support lead':['Product support lead','bill',1.1]}
+};
+var NATIVE={meter:['Meter reading officer','Meter installation technician'],bill:['Billing officer','Complaint handler'],fin:['Accounting officer','Budget analyst'],plant:['Plant operator','Emergency responder'],eng:['Design engineer','Project coordinator'],grid:['Line repair technician','Inspection reporter'],it:['Software developer','Security operations officer']};
+var TROLE={
+ meter:{'Manual meter reading':[0],'Reading data entry and validation':[0],'Customer complaint site visits':[0,1],'Routine fault and tamper inspection':[1],'Disconnection and reconnection orders':[1],'Meter installation and replacement':[1],'Field supervision and coordination':[1],'Safety and equipment upkeep':[1]},
+ bill:{'Bill generation and checks':[0],'Payment reconciliation':[0],'Field coordination':[0,1],'Complaint resolution':[1]},
+ fin:{'Routine reconciliation':[0],'Report preparation':[0],'Audit and compliance':[0,1],'Budget analysis':[1]},
+ plant:{'Routine monitoring':[0],'Log keeping':[0],'Equipment operation':[0],'Emergency response':[1]},
+ eng:{'Drafting and documentation':[0],'Data compilation':[0],'Design':[0],'Project coordination':[1]},
+ grid:{'Line repair':[0],'Scheduling':[0],'Inspection reporting':[1],'Emergency restoration':[1]},
+ it:{'Ticket triage':[0],'Report generation':[0],'Development':[0],'Security operations':[1]}};
+var DTASKS={
+ 'IoT device technician':[['Field installation and replacement',40,0],['Device configuration and commissioning',30,0],['Remote fault diagnosis',20,0],['Firmware update scheduling',10,1]],
+ 'Grid asset inspector':[['On-site asset inspection',50,0],['Inspection report writing',25,1],['Defect classification',15,0],['Asset record updates',10,1]],
+ 'Customer field service agent':[['Customer site visits',45,0],['Service order handling',25,1],['Customer explanation and complaint handling',20,0],['Meter and billing queries',10,1]],
+ 'Data quality analyst':[['Reading validation rules',30,0],['Exception review',30,0],['Data cleansing',25,1],['Quality reporting',15,1]],
+ 'Digital customer experience specialist':[['Journey analysis',35,0],['Case escalation handling',30,0],['Channel content updates',20,1],['Feedback reporting',15,1]],
+ 'Revenue assurance analyst':[['Anomaly investigation',40,0],['Payment reconciliation review',20,1],['Leakage reporting',15,1],['Process improvement',25,0]],
+ 'Field coordination planner':[['Crew scheduling',25,1],['Route and work-order planning',15,1],['Field issue coordination',60,0]],
+ 'Planning and cost analyst':[['Cost forecasting',25,1],['Budget tracking',15,1],['Business partnering',60,0]],
+ 'Revenue audit analyst':[['Audit sampling and testing',25,1],['Compliance review',35,0],['Risk assessment',30,0],['Audit reporting',10,1]],
+ 'Plant procurement analyst':[['Vendor evaluation',35,0],['Contract review',35,0],['Purchase order processing',30,1]],
+ 'Predictive maintenance technician':[['Sensor data reading',35,1],['Condition-based repairs',40,0],['Maintenance planning',25,0]],
+ 'Network control operator':[['SCADA monitoring',45,1],['Incident coordination',35,0],['Switching operations',20,0]],
+ 'Safety inspector':[['Site safety inspection',55,0],['Regulatory checks',25,0],['Incident investigation',20,0]],
+ 'Asset data modeller':[['Asset data modelling',45,0],['Simulation set-up',30,0],['Documentation',25,1]],
+ 'Project controls analyst':[['Schedule analytics',25,1],['Cost control',15,1],['Stakeholder reporting',25,0],['Risk review',35,0]],
+ 'Standards coordinator':[['Standards governance',45,0],['Knowledge management',25,1],['Document control',15,1],['Stakeholder alignment',15,0]],
+ 'Meter and asset inspector':[['On-site meter and asset inspection',55,0],['Asset recording',25,1],['Customer visit follow-up',20,0]],
+ 'Outage response coordinator':[['Dispatch of crews',25,1],['Customer outage updates',15,1],['Restoration coordination',40,0],['Field liaison',20,0]],
+ 'Maintenance planner':[['Work-order design',45,0],['Scheduling',25,1],['Planning system upkeep',15,1],['Vendor coordination',15,0]],
+ 'Data platform engineer':[['Data pipeline development',50,0],['Cloud tooling upkeep',30,0],['Pipeline monitoring',20,1]],
+ 'Security analyst':[['Threat analysis',45,0],['Incident response',35,0],['Log review',20,1]],
+ 'Product support lead':[['Escalation handling',45,0],['Ticket triage',20,1],['Service metrics reporting',20,1],['Team coaching',15,0]]};
+var RT=null;
+function roleTitles(r){if(!RT){RT={};FAM.forEach(function(f){var rs=ROLES.filter(function(x){return x.fam===f.id}),w=rs.map(function(x){var i=NATIVE[f.id].indexOf(x.name);return i===0?4:i===1?3:1.5}),tw=w.reduce(function(a,b){return a+b},0),tot=FTITLES[f.id][0],used=0;rs.forEach(function(x,i){var c=i<rs.length-1?Math.round(tot*w[i]/tw):tot-used;used+=c;RT[x.name]=c})})}return RT[r.name]||0}
+function destLoad(name){var d=DTASKS[name];if(!d)return null;var ai=0;d.forEach(function(x){if(x[2])ai+=x[1]});return {pct:Math.round(ai),list:d.map(function(x){return {n:x[0],sh:x[1],shared:false}}),fam:null}}
+function taskRoleIdx(f,t){var m=TROLE[f.id]&&TROLE[f.id][t.name];return m||NATIVE[f.id].map(function(_,i){return i})}
+function roleLoad(f,i){var tot=0,ai=0,list=[];f.tasks.forEach(function(t){var ix=taskRoleIdx(f,t);if(ix.indexOf(i)<0)return;var sh=t.w/ix.length;tot+=sh;if(t.ai)ai+=sh;list.push({n:t.name,sh:sh,shared:ix.length>1,ai:t.ai})});return {tot:tot,ai:ai,pct:tot?Math.round(ai/tot*100):0,fam:f.tot?Math.round(tot/f.tot*100):0,list:list}}
+function srcRole(f,n){var sc=NATIVE[f.id].map(function(){return 0});n.from.forEach(function(nm){var t=f.tasks.filter(function(x){return x.name===nm})[0];if(!t||!t.ai)return;var ix=taskRoleIdx(f,t);ix.forEach(function(i){sc[i]+=t.w/ix.length})});var b=-1,bi=-1;sc.forEach(function(v,i){if(v>b){b=v;bi=i}});return b>0?NATIVE[f.id][bi]:null}
+var ROLES=[];
+function buildRoles(){
+FAM.forEach(function(f){NATIVE[f.id].forEach(function(n,i){ROLES.push({name:n,fam:f.id,band:i?'Skilled':'Foundational',skills:FP[f.id].slice(0,3).map(function(r){return r[0]}),seats:0})})});
+(function(){var base=calc('base');
+ FAM.forEach(function(f){var D=DEST[f.id],m=DRN[f.id],red=base.per[f.id].red,sp=0,tot=0;
+  D.slice(1).forEach(function(d){sp+=d.split});
+  D.slice(1).forEach(function(d){var x=m[d.t];d.role=x[0];d.t=x[0];d.tfam=x[1];d.seats=Math.round(red*d.split/sp*x[2]/10)*10;tot+=d.seats;
+   ROLES.push({name:x[0],fam:x[1],band:'Skilled',skills:d.keep.concat(d.add).slice(0,4),seats:d.seats})});
+  f.vac=tot});
+})();
+}
+var OTABS=['Org units','Job families','Capability bands','Roles','Title mapping'];
+var ORGU=[['Regional Unit 1',9400],['Regional Unit 2',8700],['Regional Unit 3',8900],['Regional Unit 4',8600],['Regional Unit 5',8100],['Regional Unit 6',8300]];
+var FTITLES={meter:[230,'ok'],bill:[200,'draft'],fin:[275,'draft'],plant:[420,'draft'],eng:[250,'draft'],grid:[295,'draft'],it:[140,'draft']};
+var BANDDEF=[['Foundational','Works to set procedures with guidance','G1 to G4'],['Skilled','Works independently and handles exceptions','G5 to G7'],['Expert','Sets methods, handles complex cases and guides others','G8 to G9']];
+var TMAP=[['Petugas Baca Meter Sr.','meter','Skilled','ok','Meter reading officer'],['Juru Baca Meter Utama','meter','Skilled','ok','Meter reading officer'],['Pelaksana Baca Meter','meter','Foundational','ok','Meter reading officer'],['Staf Penagihan Madya','bill','Foundational','suggest','Billing officer'],['Asisten Analis Keuangan','fin','Foundational','suggest','Accounting officer'],['Operator Boiler Utama','plant','Skilled','review','Plant operator'],['Teknisi Jaringan Distribusi','grid','Skilled','suggest','Line repair technician'],['Insinyur Perencana Muda','eng','Skilled','review','Design engineer'],['Pranata Komputer Madya','it','Skilled','review','Software developer']];
+var STX={ok:['Validated','ok'],draft:['Draft','draft'],suggest:['Suggested','draft'],review:['Needs review','warn']};
+function st(k){var x=STX[k];return '<span class="st '+x[1]+'">'+x[0]+'</span>'}
+function screenOrg(){
+  var mapped=0;FAM.forEach(function(f){mapped+=FTITLES[f.id][0]});
+  var T=S.otab,body='';
+  if(T===0)body='<thead><tr><th>Unit</th><th class="num">People</th><th>Source</th></tr></thead><tbody>'+ORGU.map(function(u){return '<tr><td>'+u[0]+'</td><td class="num">'+fmt(u[1])+'</td><td>HR system (SAP)</td></tr>'}).join('')+'</tbody>';
+  if(T===1)body='<thead><tr><th>Job family</th><th class="num">People</th><th class="num">Titles mapped</th><th>Key skills</th></tr></thead><tbody>'+FAM.map(function(f){var x=FTITLES[f.id];return '<tr><td>'+esc(f.name)+'</td><td class="num">'+fmt(f.people)+'</td><td class="num">'+x[0]+'</td><td>'+FP[f.id].slice(0,3).map(function(r){return r[0]}).join(', ')+'</td></tr>'}).join('')+'</tbody>';
+  if(T===2)body='<thead><tr><th>Band</th><th>What it means</th><th>Grades</th></tr></thead><tbody>'+BANDDEF.map(function(b){return '<tr><td>'+b[0]+'</td><td>'+b[1]+'</td><td>'+b[2]+'</td></tr>'}).join('')+'</tbody>';
+  if(T===3)body='<thead><tr><th>Role</th><th>Job family</th><th>Band</th><th>Tasks performed</th><th>Automatable work</th><th>Key skills</th><th class="num">Titles mapped</th></tr></thead><tbody>'+ROLES.map(function(r){var n=roleTitles(r),fm=famById(r.fam),ri=NATIVE[r.fam].indexOf(r.name),rl=ri>=0?roleLoad(fm,ri):destLoad(r.name);var tc=rl?'<div class="rtl">'+rl.list.map(function(x){return '<div>'+esc(x.n)+' <span class="why">· '+Math.round(x.sh)+'%'+(x.shared?' (shared)':'')+'</span></div>'}).join('')+'<div class="why" style="margin-top:4px">'+(rl.fam!==null?rl.fam+'% of the family\'s work':'Illustrative task list, outside the 32-task catalogue')+'</div></div>':'<span class="why">Not catalogued: illustrative destination role</span>',ac=rl?'<span class="barwrap"><span class="bar'+(rl.pct>=50?' hot':'')+'"><i style="width:'+rl.pct+'%"></i></span><span class="pct">'+rl.pct+'%</span></span>':'–';return '<tr><td style="font-weight:500">'+esc(r.name)+'</td><td>'+esc(fm.name)+'</td><td>'+r.band+'</td><td>'+tc+'</td><td>'+ac+'</td><td><div class="chips">'+r.skills.map(function(k){return '<span class="chip">'+k+'</span>'}).join('')+'</div></td><td class="num">'+(n||'–')+'</td></tr>'}).join('')+'</tbody>';
+  if(T===4)body='<thead><tr><th>Job title in the source system</th><th>Normalized role</th><th>Job family</th><th>Band</th></tr></thead><tbody>'+TMAP.map(function(r){return '<tr><td>'+r[0]+'</td><td style="font-weight:500">'+r[4]+'</td><td>'+esc(famById(r[1]).name)+'</td><td>'+r[2]+'</td></tr>'}).join('')+'</tbody>';
+  var notes=['Units and headcount are read from the HR system. Meridian stores the normalised list.','Job families are our grouping. Titles are mapped to them. Only Field Metering has been validated with unit managers so far.','Bands are our definition of capability depth. Each grade range maps to one band. Grades come from the HR system.','Roles are normalised titles: many source titles collapse into one named role. Roles are the targets of redeployment and carry their skills. Each role lists the tasks it performs: a task shared by two current roles is split evenly. Task lists of the destination roles are illustrative assumptions. Titles mapped per role are an illustrative split of the titles mapped to each family. Roles outside Field Metering are illustrative.','A few sample rows of '+fmt(mapped)+' source titles. Each title is normalised to a role, and each role belongs to one job family and band. This is what lets us group 1,800+ titles.'];
+  return head('Organization','The structure master that groups people and work. It is read from the existing systems, normalised here and validated with unit managers. Nothing is written back to those systems.')+
+  '<div class="strip five">'+
+  '<div class="stat"><span class="t">Regional units</span><b>6</b><span class="c">read from the HR system</span></div>'+
+  '<div class="stat"><span class="t">Job families</span><b>'+FAM.length+'</b><span class="c">our grouping of types of work</span></div>'+
+  '<div class="stat"><span class="t">Capability bands</span><b>3</b><span class="c">depth of capability, not a rank</span></div>'+
+  '<div class="stat"><span class="t">Roles</span><b>'+ROLES.length+'</b><span class="c">normalised titles, the unit of redeployment. Existing titles only</span></div>'+
+  '<div class="stat"><span class="t">Job titles</span><b>'+fmt(mapped)+'</b><span class="c">normalised and mapped to a job family</span></div></div>'+
+  '<div class="tabs" role="tablist" aria-label="Organization master data">'+OTABS.map(function(t,i){return '<button type="button" role="tab" class="tab" data-otab="'+i+'" aria-selected="'+(i===T)+'">'+t+'</button>'}).join('')+'</div>'+
+  '<section class="card pad stack"><div class="srcline"><span class="chip">Source: HR system (SAP SuccessFactors)</span><span class="chip">Normalised in Meridian</span><span>'+notes[T]+'</span></div><div class="scroll"><table>'+body+'</table></div></section>';
+}
+
+var STABS=['Skill dictionary','Aliases','Family profile'];
+var SKD=[['Meter reading','Field operations'],['Route planning','Field operations'],['Meter installation','Field operations'],['Fault inspection','Field operations'],['Line repair','Field operations'],['Inspection reporting','Field operations'],['Emergency response','Field operations'],['Work safety certification','Safety'],['Billing rules','Customer operations'],['Complaint handling','Customer operations'],['Customer communication','Customer operations'],['Payment reconciliation','Customer operations'],['Accounting standards','Finance'],['Reporting','Finance'],['Budget analysis','Finance'],['Equipment operation','Plant'],['Routine monitoring','Plant'],['Design','Engineering'],['Project coordination','Engineering'],['Documentation','Engineering'],['Development','Digital'],['Security operations','Digital'],['Ticket triage','Digital'],['Device configuration','Digital']];
+var FP={
+ meter:[['Meter reading',2,3,3],['Route planning',1,2,3],['Work safety certification',2,3,3],['Fault inspection',1,2,3],['Meter installation',1,2,3]],
+ bill:[['Billing rules',2,3,3],['Complaint handling',1,2,3],['Payment reconciliation',1,3,3],['Customer communication',2,3,3]],
+ fin:[['Accounting standards',1,3,3],['Reporting',1,3,3],['Budget analysis',0,2,3]],
+ plant:[['Equipment operation',2,3,3],['Work safety certification',2,3,3],['Routine monitoring',1,2,3],['Emergency response',0,2,3]],
+ eng:[['Design',1,3,3],['Project coordination',0,2,3],['Documentation',2,3,3]],
+ grid:[['Line repair',2,3,3],['Work safety certification',2,3,3],['Inspection reporting',1,2,3],['Emergency response',0,2,3]],
+ it:[['Development',2,3,3],['Security operations',1,2,3],['Ticket triage',2,3,3],['Device configuration',0,2,3]]};
+var ALIAS=[['Baca meter','Learning system','Meter reading','ok'],['Pembacaan KWH','Learning system','Meter reading','ok'],['Meter reading L2','Assessment','Meter reading','ok'],['Route plan','Learning system','Route planning','suggest'],['K3 Dasar','Learning system','Work safety certification','suggest'],['Sertifikasi K3 Listrik','Learning system','Work safety certification','suggest'],['Rekonsiliasi pembayaran','Learning system','Payment reconciliation','suggest'],['Penanganan keluhan','Assessment','Complaint handling','suggest'],['Pemrograman dasar','Learning system','Development','review'],['IoT basics','Learning system','Device configuration','review']];
+var LV=['–','Basic','Working','Advanced'];
+function skillUse(name){var n=0;Object.keys(FP).forEach(function(k){FP[k].forEach(function(r){if(r[0]===name)n++})});return n}
+function screenSk(){
+  var T=S.stab,body='',fam=famById(S.skfam),extra='';
+  if(T===0)body='<thead><tr><th>Skill</th><th>Domain</th><th class="num">Used in family profiles</th></tr></thead><tbody>'+SKD.map(function(r){var u=skillUse(r[0]);return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td class="num">'+(u||'–')+'</td></tr>'}).join('')+'</tbody>';
+  if(T===1)body='<thead><tr><th>Name in the source system</th><th>Source</th><th>Standard skill</th><th>Status</th></tr></thead><tbody>'+ALIAS.map(function(r){return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+st(r[3])+'</td></tr>'}).join('')+'</tbody>';
+  if(T===2){
+    extra='<div style="max-width:460px"><h3><label for="skfam">Job family</label></h3><select id="skfam">'+FAM.map(function(f){return '<option value="'+f.id+'"'+(f.id===S.skfam?' selected':'')+'>'+f.name+'</option>'}).join('')+'</select></div>';
+    body='<thead><tr><th>Skill</th><th>Foundational</th><th>Skilled</th><th>Expert</th></tr></thead><tbody>'+FP[S.skfam].map(function(r){return '<tr><td>'+r[0]+'</td><td>'+LV[r[1]]+'</td><td>'+LV[r[2]]+'</td><td>'+LV[r[3]]+'</td></tr>'}).join('')+'</tbody>';
+  }
+  var notes=['One standard name per skill. Everything else in the systems is mapped to these names.','Course and assessment names differ across systems. Each is mapped to one standard skill and checked before it counts.','The skills a job family expects at each band, and how deep. This is the standard that profiles and skill gaps are compared against.'];
+  return head('Skills','The standard skill list, the names it replaces and the skills each job family expects. Read from the learning and assessment systems, normalised here and checked with unit managers. Nothing is written back.')+
+  '<div class="strip">'+
+  '<div class="stat"><span class="t">Standard skills</span><b>'+SKD.length+'</b><span class="c">one standard name per skill</span></div>'+
+  '<div class="stat"><span class="t">Source skill names mapped</span><b>312</b><span class="c">of 540 names in the learning and assessment systems</span></div>'+
+  '<div class="stat"><span class="t">Families with a skill profile</span><b>'+Object.keys(FP).length+'</b><span class="c">skills expected at each band</span></div>'+
+  '<div class="stat warn"><span class="t">Skill records blank</span><b>45%</b><span class="c">of person records have no skills recorded</span></div></div>'+
+  '<div class="tabs" role="tablist" aria-label="Skills master data">'+STABS.map(function(t,i){return '<button type="button" role="tab" class="tab" data-stab="'+i+'" aria-selected="'+(i===T)+'">'+t+'</button>'}).join('')+'</div>'+
+  '<section class="card pad stack"><div class="srcline"><span class="chip">Source: Learning system, Assessment</span><span class="chip">Normalised in Meridian</span><span>'+notes[T]+'</span></div>'+extra+'<div class="scroll"><table>'+body+'</table></div></section>';
+}
+
+function findTask(id){var r=null;FAM.forEach(function(f){f.tasks.forEach(function(t){if(t.id===id)r={f:f,t:t}})});return r}
+function masterChanged(f){recompute(f)}
+function newTasksCard(){
+  var rows=FAM.map(function(f){return f.newTasks.filter(function(n){return n.dec==='accept'&&nActive(f,n)}).map(function(n){return '<tr><td>'+esc(n.name)+'</td><td>'+esc(f.name)+'</td><td class="num">'+n.w+'%</td><td><div class="chips">'+n.skills.map(function(k){return '<span class="chip">'+k+'</span>'}).join('')+'</div></td><td>'+(function(){var c=classify(f,n);return '<span class="st '+(c.up?'ok':'warn')+'">'+(c.up?'Upskill':'Role design needed')+'</span> '+esc(c.role)})()+'</td><td><span class="chip add">New (post-automation)</span></td></tr>'}).join('')}).join('');
+  return '<section class="card pad stack"><h3>Emerging tasks</h3><p class="note" style="margin:0">Accepted in Workforce Transformation. They describe future work and are not part of the current shares of work above.</p><div class="scroll"><table><thead><tr><th>Task</th><th>Job family</th><th class="num">Share of family capacity</th><th>Required skills</th><th>Lands in</th><th>Source</th></tr></thead><tbody>'+(rows||'<tr><td colspan="6" class="note" style="padding:14px">No emerging tasks accepted yet.</td></tr>')+'</tbody></table></div></section>';
+}
+function screenTasks(){
+  var sel=S.tfam,list=FAM.filter(function(f){return sel==='all'||f.id===sel}),all=0,mapped=0,added=0,ok=0;
+  FAM.forEach(function(f){all+=f.tasks.length;if(f.tot===100)ok++;f.tasks.forEach(function(t){if(t.skills&&t.skills.length)mapped++;if(t.src==='Added by user')added++})});
+  var rows=list.map(function(f){return f.tasks.map(function(t){var add=t.src==='Added by user';
+    return '<tr><td>'+esc(t.name)+'</td><td>'+esc(f.name)+'</td><td>'+taskRoleIdx(f,t).map(function(i){return esc(NATIVE[f.id][i])}).join(', ')+'</td><td class="num"><input type="number" class="wi" data-tw="'+t.id+'" min="0" max="100" step="1" value="'+t.w+'" aria-label="Share of work for '+esc(t.name)+'"></td><td>'+((t.skills&&t.skills.length)?'<div class="chips">'+t.skills.map(function(k){return '<span class="chip">'+k+'</span>'}).join('')+'</div>':'<span class="st warn">Not mapped</span>')+'</td><td><span class="chip'+(add?' add':'')+'">'+(add?'Added by user':'Standard catalogue')+'</span></td><td>'+(add?'<button type="button" class="ghost" data-tdel="'+t.id+'">Remove</button>':'')+'</td></tr>'}).join('')}).join('');
+  var fopts='<option value="all"'+(sel==='all'?' selected':'')+'>All job families</option>'+FAM.map(function(f){return '<option value="'+f.id+'"'+(f.id===sel?' selected':'')+'>'+f.name+'</option>'}).join('');
+  var nopts=FAM.map(function(f){return '<option value="'+f.id+'"'+(f.id===(sel==='all'?S.lib:sel)?' selected':'')+'>'+f.name+'</option>'}).join('');
+  var sopts=SKD.map(function(k){return '<option value="'+k[0]+'">'+k[0]+'</option>'}).join('');
+  var fam=sel==='all'?null:famById(sel);
+  var ts=(function(){var n=0,top=null,sk=[],fids=list.map(function(f){return f.id});list.forEach(function(f){f.tasks.forEach(function(t){n++;(t.skills||[]).forEach(function(k){if(sk.indexOf(k)<0&&SKD.some(function(x){return x[0]===k}))sk.push(k)});if(!top||t.w>top.t.w)top={t:t,f:f}})});
+    var rs=ROLES.filter(function(r){return fids.indexOf(r.fam)>=0}),rw=rs.filter(function(r){var ni=NATIVE[r.fam].indexOf(r.name);return ni>=0?roleLoad(famById(r.fam),ni).list.length>0:!!DTASKS[r.name]}).length;
+    return {n:n,top:top,sk:sk.length,rs:rs.length,rw:rw}})();
+  var bar=fam?'<div class="srcline"><span class="'+(fam.tot===100?'st ok':'st warn')+'">Weights add up to '+fam.tot+'%</span>'+(fam.tot===100?'':'<button type="button" class="ghost" id="tnorm">Scale weights to 100%</button>')+'<span>The assessment for this family needs weights that add up to 100%.</span></div>':'';
+  return head('Tasks','The task catalogue per job family: what work each family does and how much of it each task makes up. Tasks come from standard catalogues and are the only place to add or change a task. AI Assessment reads this list. Nothing is written back to the HR system.','<span style="display:flex;gap:8px"><button type="button" class="btn sec" id="tcat">Reset catalogue</button><button type="button" class="btn" id="topen">Add task</button></span>')+
+  '<div class="strip">'+
+   '<div class="stat"><span class="t">Tasks</span><b>'+ts.n+'</b><span class="c">'+(fam?'in '+esc(fam.name):'across '+list.length+' job families')+(added?', '+added+' added by user':'')+'</span></div>'+
+   '<div class="stat"><span class="t">Largest share of work</span><b style="font-size:20px;line-height:1.25">'+(ts.top?esc(ts.top.t.name):'None')+'</b><span class="c">'+(ts.top?ts.top.t.w+'% of '+esc(ts.top.f.name.split(' and ')[0])+' work':'')+'</span></div>'+
+   '<div class="stat"><span class="t">Added by user</span><b>'+added+'</b><span class="c">tasks not in the standard catalogue</span></div></div>'+
+  '<section class="card pad stack"><div style="max-width:460px"><h3><label for="tfam">Job family</label></h3><select id="tfam">'+fopts+'</select></div>'+bar+
+   '<div class="scroll"><table><thead><tr><th>Task</th><th>Job family</th><th>Performed by</th><th class="num">Share of work (%)</th><th>Required skills</th><th>Source</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></section>'+
+  '<dialog id="tdlg" class="tdlg" aria-labelledby="tdt"><div class="tdb"><div class="tdh"><h3 id="tdt">Add a task</h3><button type="button" class="ghost" id="tcancel" aria-label="Close">Close</button></div>'+
+   '<label class="tdf"><span class="note">Task name</span><input type="text" id="tn" placeholder="e.g. Customer data review"></label>'+
+   '<div class="tdr"><label class="tdf"><span class="note">Job family</span><select id="tnf" class="dec">'+nopts+'</select></label><label class="tdf" style="max-width:130px"><span class="note">Share of work (%)</span><input type="number" id="tw" min="1" max="100" step="1" placeholder="1 to 100"></label></div>'+
+   '<div class="tdf"><span class="note" id="tnsl">Required skills</span><details class="msel" id="tnsd"><summary aria-labelledby="tnsl"><span class="msv" id="tnsv">Select skills</span></summary><div class="mselp">'+SKD.map(function(k){return '<label><input type="checkbox" data-sk="'+esc(k[0])+'"> '+esc(k[0])+'<small>'+esc(k[1])+'</small></label>'}).join('')+'</div></details></div>'+
+   '<p class="note" id="tmsg" style="margin:0">A new task has no AI assessment yet. Run the AI analysis for that family in AI Assessment. Adding a task makes that family an AI estimate again until the new task has a decision.</p><div class="tdh" style="justify-content:flex-end"><button type="button" class="btn sec" id="tcancel2">Cancel</button><button type="button" class="btn" id="tadd">Add task</button></div></div></dialog>';
+}
+function render(keep){
+  document.getElementById('main').innerHTML='<nav class="crumb" id="crumb" aria-label="Breadcrumb"></nav>'+[screen0,screenLib,screen2,function(){return ''},screenOrg,screenSk,screenTasks][S.screen]();
+  renderShell();
+  if(S.screen===0){rows0();panel0()}
+  if(S.screen===1)updateLib();
+  if(!keep)window.scrollTo(0,0);
+  var mn=document.getElementById('main'),key=S.screen+':'+(S.screen===2?S.tfm:'');
+  if(render.last!==undefined&&render.last!==key){mn.classList.remove('enter');void mn.offsetWidth;mn.classList.add('enter')}
+  render.last=key;
+}
+/* ---------- events ---------- */
+document.addEventListener('click',function(e){
+  if(e.target.id==='topen'){var dg=document.getElementById('tdlg');if(dg&&dg.showModal)dg.showModal();return}
+  if(e.target.id==='tcancel'||e.target.id==='tcancel2'||e.target.id==='tdlg'){var dc=document.getElementById('tdlg');if(dc)dc.close();return}
+  var msd=document.getElementById('tnsd');if(msd&&msd.open&&!e.target.closest('#tnsd'))msd.open=false;
+  var tg=e.target.closest('[data-toggle]');if(tg){if(tg.getAttribute('data-toggle')==='int')S.intOpen=!S.intOpen;else S.mdOpen=!S.mdOpen;renderShell();return}
+  var stb=e.target.closest('[data-stab]');if(stb){S.stab=+stb.getAttribute('data-stab');render();return}
+  var ot=e.target.closest('[data-otab]');if(ot){S.otab=+ot.getAttribute('data-otab');render();return}
+  var g=e.target.closest('[data-go]');if(g){S.screen=+g.getAttribute('data-go');render();return}
+  var tdl=e.target.closest('[data-tdel]');if(tdl){var ft=findTask(tdl.getAttribute('data-tdel'));ft.f.tasks=ft.f.tasks.filter(function(t){return t.id!==ft.t.id});masterChanged(ft.f);render();toast('Task removed');return}
+  if(e.target.id==='tnorm'){var f3=famById(S.tfam),k=100/f3.tot,sum=0,big=f3.tasks[0];f3.tasks.forEach(function(t){t.w=Math.round(t.w*k);sum+=t.w;if(t.w>big.w)big=t});big.w+=100-sum;masterChanged(f3);render();toast('Weights scaled to 100%');return}
+  if(e.target.id==='tcat'){FAM.forEach(function(f){f.tasks=JSON.parse(JSON.stringify(f.orig));recompute(f);initState(f);initNew(f);f.tasks.forEach(function(t){t.rev=f.id==='meter'})});S.plan={};render();toast('Catalogue reset to the standard tasks');return}
+  if(e.target.id==='tadd'){var nm=document.getElementById('tn').value.trim(),w=parseInt(document.getElementById('tw').value,10),fa=famById(document.getElementById('tnf').value),msg=document.getElementById('tmsg');
+    if(!nm||!(w>0&&w<=100)){msg.textContent='Enter a task name and a share between 1 and 100.';return}
+    var sk=[].slice.call(document.querySelectorAll('[data-sk]:checked')).map(function(o){return o.getAttribute('data-sk')});
+    fa.tasks.push({id:fa.id+'n'+(++S.nid),name:nm,w:w,ai:false,lvl:null,src:'Added by user',skills:sk,rev:false,upd:stamp()});masterChanged(fa);render();toast('Task added to '+fa.name);return}
+  var as=e.target.closest('[data-assess]');if(as){S.lib=as.getAttribute('data-assess');S.screen=1;render();return}
+  var f=e.target.closest('tr[data-fam]');if(f){S.fam=f.getAttribute('data-fam');rows0();panel0();return}
+  var c=e.target.closest('[data-filt]');if(c){S.filt=c.getAttribute('data-filt');document.querySelectorAll('[data-filt]').forEach(function(b){b.setAttribute('aria-pressed',b===c)});rows0();return}
+  if(e.target.id==='markrev'){libTasks().forEach(function(t){if(!t.rev){t.rev=true;t.upd=stamp()}});FAM.forEach(recompute);updateLib();toast('AI suggestions accepted for all tasks');return}
+  if(e.target.id==='runai'){var n=0;libTasks().forEach(function(t){if(!t.lvl){t.lvl=assess(t);t.ai=t.lvl==='high';n++}});if(n){libChanged();toast('AI analysis assessed '+n+' task'+(n>1?'s':''))}else toast('All tasks already have an AI assessment');return}
+  var txr=e.target.closest('tr[data-tx]');if(txr&&!e.target.closest('a,button')){var nx=txr.nextElementSibling;if(nx&&nx.classList.contains('txd')){nx.hidden=!nx.hidden;txr.classList.toggle('open',!nx.hidden)}return}
+  var dtb=e.target.closest('[data-dtab]');if(dtb){S.dtab=+dtb.getAttribute('data-dtab');render(true);return}
+  var tf=e.target.closest('[data-tfm]');if(tf){S.tfm=tf.getAttribute('data-tfm');S.dtab=0;render();return}
+  var tp=e.target.closest('[data-toplan]');if(tp){S.tfm=tp.getAttribute('data-toplan');S.screen=2;render();return}
+  var tt=e.target.closest('[data-totf]');if(tt){S.tfm=tt.getAttribute('data-totf');S.screen=2;render();return}
+  if(e.target.id==='rsreset'){delete S.plan[S.tfm];render(true);toast('Reset to the AI suggestion');return}
+  if(e.target.id==='libreset'){libTasks().forEach(function(t){if(t.lvl)t.ai=(t.lvl==='high');t.rev=false;t.upd=null});libChanged();toast('Decisions reset. Choose a decision for each task');return}
+
+});
+document.addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' ')&&e.target.matches('tr[data-fam]')){e.preventDefault();e.target.click()}});
+document.addEventListener('change',function(e){
+  if(e.target.matches&&e.target.matches('[data-sk]')){var ck=[].slice.call(document.querySelectorAll('[data-sk]:checked')).map(function(o){return o.getAttribute('data-sk')}),sv=document.getElementById('tnsv');sv.textContent=ck.length?(ck.length<=3?ck.join(', '):ck.length+' skills selected'):'Select skills';sv.className='msv'+(ck.length?' on':'');return}
+  if(e.target.id==='rsl'){S.plan[S.tfm]={rs:+e.target.value/100};render(true)}
+  if(e.target.id==='tfm'){S.tff=e.target.value;render()}
+  if(e.target.matches('[data-nw]')){var nn=famById(S.tfm).newTasks.filter(function(n){return n.id===e.target.getAttribute('data-nw')})[0],vv=parseInt(e.target.value,10);nn.w=isNaN(vv)?0:Math.max(0,Math.min(30,vv));render(true)}
+  if(e.target.matches('[data-nd]')){var nd=famById(S.tfm).newTasks.filter(function(n){return n.id===e.target.getAttribute('data-nd')})[0];nd.dec=e.target.value;render(true)}
+  if(e.target.id==='libfam'){S.lib=e.target.value;updateLib()}
+  if(e.target.id==='tfam'){S.tfam=e.target.value;render()}
+  if(e.target.matches('[data-tw]')){var ftw=findTask(e.target.getAttribute('data-tw')),v2=parseInt(e.target.value,10);ftw.t.w=isNaN(v2)?0:Math.max(0,Math.min(100,v2));ftw.t.upd=stamp();masterChanged(ftw.f);render()}
+  if(e.target.id==='skfam'){S.skfam=e.target.value;render()}
+  if(e.target.id==='mapfam'){S.mapfam=e.target.value;render()}
+  if(e.target.matches('[data-ai]')){var td=libTask(e.target.getAttribute('data-ai'));td.ai=e.target.value==='1';td.rev=true;td.upd=stamp();libChanged()}
+});
+document.addEventListener('input',function(e){
+  if(e.target.id==='rsl'){var rv=document.getElementById('rslv');if(rv)rv.textContent=e.target.value+'%'}
+  if(e.target.id==='q'){S.q=e.target.value;rows0()}
+});
+document.getElementById('theme').addEventListener('click',function(){
+  var r=document.documentElement,dark=r.getAttribute('data-theme')==='dark'||(!r.getAttribute('data-theme')&&window.matchMedia('(prefers-color-scheme:dark)').matches);
+  r.setAttribute('data-theme',dark?'light':'dark');
+});
+document.documentElement.setAttribute('data-theme','light');
+buildRoles();
+render();
+</script>
+
+</body>
+</html>
